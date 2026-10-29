@@ -269,9 +269,9 @@
                 </div>
 
                 <!-- Toggle Travel Mode: Instant Warp vs Autopilot Drive (Key T) -->
-                <button onclick="toggleTravelMode()" id="travel-mode-btn" title="Đổi chế độ chuyển trạm: Dịch chuyển tức thời (Warp) hoặc Xe tự lái (Autopilot) — Phím T" class="glass-pill px-2.5 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-emerald-300 hover:text-white hover:bg-emerald-500/20 border border-emerald-500/30 transition cursor-pointer">
-                    <i class="fa-solid fa-bolt text-emerald-400" id="travel-mode-icon"></i>
-                    <span class="hidden md:inline" id="travel-mode-text">Warp (T)</span>
+                <button onclick="toggleTravelMode()" id="travel-mode-btn" title="Đổi chế độ chuyển trạm: Xe tự lái (Autopilot) hoặc Dịch chuyển tức thời (Warp) — Phím T" class="glass-pill px-2.5 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-cyan-300 hover:text-white hover:bg-cyan-500/20 border border-cyan-500/30 transition cursor-pointer">
+                    <i class="fa-solid fa-robot text-cyan-400" id="travel-mode-icon"></i>
+                    <span class="hidden md:inline" id="travel-mode-text">Tự lái (T)</span>
                 </button>
 
                 <!-- Switch Car Asset: GLB Supercar vs Lambo SVJ Anatomy (Key V) -->
@@ -287,13 +287,13 @@
                 </button>
 
                 <!-- Direct Storm Weather Button (Key M) -->
-                <button onclick="toggleStormWeather()" id="storm-btn" title="Bật / Tắt thời tiết Mưa Bão & Sấm Sét 3D (Phím M)" class="glass-pill px-2.5 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-sky-300 bg-sky-500/25 border border-sky-400/50 hover:bg-sky-500/35 transition cursor-pointer">
-                    <i class="fa-solid fa-cloud-showers-heavy text-sky-300 animate-bounce" id="storm-icon"></i>
+                <button onclick="toggleStormWeather()" id="storm-btn" title="Bật / Tắt thời tiết Mưa Bão & Sấm Sét 3D (Phím M)" class="glass-pill px-2.5 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-slate-300 hover:text-white hover:bg-sky-500/20 border border-slate-700 transition cursor-pointer">
+                    <i class="fa-solid fa-cloud-showers-heavy text-sky-400" id="storm-icon"></i>
                     <span class="hidden md:inline" id="storm-text">Mưa Bão (M)</span>
                 </button>
 
-                <button onclick="toggleDayNight()" id="theme-btn" title="Chuyển đổi 4 chế độ Thời tiết & Ánh sáng (Phím N)" class="glass-pill w-9 h-9 rounded-xl flex items-center justify-center text-sky-300 hover:bg-slate-800 transition cursor-pointer">
-                    <i class="fa-solid fa-cloud-bolt" id="theme-icon"></i>
+                <button onclick="toggleDayNight()" id="theme-btn" title="Chuyển đổi 4 chế độ Thời tiết & Ánh sáng (Phím N)" class="glass-pill w-9 h-9 rounded-xl flex items-center justify-center text-amber-400 hover:bg-slate-800 transition cursor-pointer">
+                    <i class="fa-solid fa-sun" id="theme-icon"></i>
                 </button>
 
                 <button onclick="toggleFastCVModal(true)" title="Xem CV đầy đủ (Phím C)" class="px-3 h-9 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-display font-bold text-xs shadow-lg shadow-cyan-500/20 transition flex items-center gap-1.5 cursor-pointer">
@@ -1251,8 +1251,8 @@
         let nextLightningTimer = 2.5;
         let cameraShakeIntensity = 0;
 
-        // Travel Mode for Shortcuts (true = Instant Warp, false = Autopilot Drive)
-        let instantWarpMode = true;
+        // Travel Mode for Shortcuts (false = Autopilot Drive by default, true = Instant Warp)
+        let instantWarpMode = false;
         let lastVisitedZoneIdx = 0;
 
         // 6 Supercar Paint Presets
@@ -1290,8 +1290,8 @@
         let autopilotTarget = null;
         let activeZoneId = null;
         let dismissedZoneId = null;
-        // Start in Mode 3 (Thunderstorm "Mưa Bão") so forward headlights & rain storm shine immediately!
-        let lightingMode = 3;
+        // Start in Mode 0 (Sunny Day - Trời Nắng) by default on initial load
+        let lightingMode = 0;
         let ambientLight, dirLight, hemiLight;
         const WORLD_ROADS = [];
 
@@ -2565,11 +2565,12 @@
                 depthWrite: false
             });
             rainSystem = new THREE.LineSegments(rainGeo, rainMat);
-            rainSystem.visible = true;
+            rainSystem.visible = false;
             scene.add(rainSystem);
 
             // 2. Ground Rain Splash Ripples Pool
             rainSplashGroup = new THREE.Group();
+            rainSplashGroup.visible = false;
             const rippleGeo = new THREE.RingGeometry(0.08, 0.15, 16);
             rippleGeo.rotateX(-Math.PI / 2);
             for (let i = 0; i < 65; i++) {
@@ -2828,7 +2829,7 @@
                 showToast('⚡ Chế độ chuyển trạm: Dịch chuyển tức thời (Instant Warp)');
             } else {
                 if (icon) icon.className = 'fa-solid fa-robot text-cyan-400';
-                if (text) text.textContent = 'Autopilot (T)';
+                if (text) text.textContent = 'Tự lái (T)';
                 if (btn) btn.className = 'glass-pill px-2.5 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-cyan-300 hover:text-white hover:bg-cyan-500/20 border border-cyan-500/30 transition cursor-pointer';
                 showToast('🤖 Chế độ chuyển trạm: Xe tự động lái (Autopilot)');
             }
@@ -3372,6 +3373,87 @@
             }
 
             // Spin Both Procedural Wheels & Loaded GLB Supercar Wheels
+            const wheelSpin = carState.speed * 1.65;
+            if (frontWheelL && frontWheelR && rearWheelL && rearWheelR) {
+                frontWheelL.rotation.y = carState.steeringVisual;
+                frontWheelR.rotation.y = carState.steeringVisual;
+                frontWheelL.children[0].rotation.x += wheelSpin;
+                frontWheelR.children[0].rotation.x += wheelSpin;
+                rearWheelL.children[0].rotation.x += wheelSpin;
+                rearWheelR.children[0].rotation.x += wheelSpin;
+            }
+            if (gltfWheels.length > 0) {
+                gltfWheels.forEach((w, idx) => {
+                    w.rotation.x -= wheelSpin;
+                    if (idx < 2) w.rotation.z = carState.steeringVisual * 0.6;
+                });
+            }
+
+            // Animate Exploded Anatomy Sub-Assemblies
+            anatomyParts.forEach(part => {
+                const targetX = part.basePos.x + (isAnatomyExploded ? part.targetOffset.x : 0);
+                const targetY = part.basePos.y + (isAnatomyExploded ? part.targetOffset.y : 0);
+                const targetZ = part.basePos.z + (isAnatomyExploded ? part.targetOffset.z : 0);
+                part.obj.position.x += (targetX - part.obj.position.x) * 0.12;
+                part.obj.position.y += (targetY - part.obj.position.y) * 0.12;
+                part.obj.position.z += (targetZ - part.obj.position.z) * 0.12;
+            });
+            if (isAnatomyExploded) {
+                carState.angle += 0.008;
+            }
+
+            // Exhaust Particles & Knockable Brick Wall Physics
+            if (Math.abs(carState.speed) > 0.22 && Math.random() < (keys.boost ? 0.85 : 0.35)) {
+                spawnExhaustParticle(keys.boost);
+            }
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life -= 0.04;
+                p.mesh.position.y += 0.03;
+                p.mesh.scale.multiplyScalar(1.04);
+                p.mesh.material.opacity = Math.max(0, p.life);
+                if (p.life <= 0) {
+                    scene.remove(p.mesh);
+                    particles.splice(i, 1);
+                }
+            }
+            knockableBricks.forEach(b => {
+                const dx = b.mesh.position.x - carState.x;
+                const dz = b.mesh.position.z - carState.z;
+                const dist = Math.hypot(dx, dz);
+                if (dist < 2.8 && b.mesh.position.y < 2.4) {
+                    b.awake = true;
+                    const pushForce = Math.max(0.28, Math.abs(carState.speed) * 1.45);
+                    b.vx = (dx / (dist || 1)) * pushForce + (Math.random() - 0.5) * 0.18;
+                    b.vy = 0.22 + Math.random() * 0.22;
+                    b.vz = (dz / (dist || 1)) * pushForce + (Math.random() - 0.5) * 0.18;
+                    b.rx = (Math.random() - 0.5) * 0.25;
+                    b.ry = (Math.random() - 0.5) * 0.25;
+                    b.rz = (Math.random() - 0.5) * 0.25;
+                }
+                if (b.awake) {
+                    b.mesh.position.x += b.vx;
+                    b.mesh.position.y += b.vy;
+                    b.mesh.position.z += b.vz;
+                    b.mesh.rotation.x += b.rx;
+                    b.mesh.rotation.y += b.ry;
+                    b.mesh.rotation.z += b.rz;
+                    b.vy -= 0.016;
+                    if (b.mesh.position.y <= b.halfH) {
+                        b.mesh.position.y = b.halfH;
+                        b.vy *= -0.35;
+                        b.vx *= 0.82;
+                        b.vz *= 0.82;
+                        b.rx *= 0.82;
+                        b.ry *= 0.82;
+                        b.rz *= 0.82;
+                        if (Math.hypot(b.vx, b.vz) < 0.005 && Math.abs(b.vy) < 0.02) {
+                            b.awake = false;
+                        }
+                    }
+                }
+            });
+
             // Smooth Follow Camera (with subtle Thunder Rumble when lightning strikes)
             const camTargetX = carState.x - Math.sin(carState.angle) * 13;
             const camTargetZ = carState.z + 23;
