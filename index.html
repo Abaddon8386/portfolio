@@ -1218,6 +1218,78 @@
         let dismissedZoneId = null;
         let lightingMode = 2;
         let ambientLight, dirLight, hemiLight;
+        const WORLD_ROADS = [];
+
+        // Calculate shortest distance from point (px, pz) to a road line segment (x1, z1) -> (x2, z2)
+        function distanceToSegment2D(px, pz, x1, z1, x2, z2) {
+            const dx = x2 - x1;
+            const dz = z2 - z1;
+            const lenSq = dx * dx + dz * dz;
+            if (lenSq === 0) return Math.hypot(px - x1, pz - z1);
+            let t = ((px - x1) * dx + (pz - z1) * dz) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+            return Math.hypot(px - (x1 + t * dx), pz - (z1 + t * dz));
+        }
+
+        // Verify that (x, z) is strictly outside all roads, zone rings, monuments, and brick walls
+        function isSceneryPositionSafe(x, z, margin = 3.2) {
+            // 1. Check distance to all road segments
+            for (let i = 0; i < WORLD_ROADS.length; i++) {
+                const r = WORLD_ROADS[i];
+                const d = distanceToSegment2D(x, z, r.x1, r.z1, r.x2, r.z2);
+                if (d < r.width / 2 + margin) return false;
+            }
+            // 2. Check distance to all 6 Zone Pads
+            for (let i = 0; i < ZONES_DATA.length; i++) {
+                const zData = ZONES_DATA[i];
+                if (Math.hypot(x - zData.x, z - zData.z) < zData.radius + margin + 1.5) return false;
+            }
+            // 3. Check distance to 3D Monuments & Knockable Brick Wall
+            const monumentCenters = [
+                { x: 0, z: -2.5, r: 9.5 },    // Torii Gate
+                { x: 0, z: -12.5, r: 9.5 },   // Brick Wall
+                { x: 0, z: 10, r: 5.5 },      // Car Spawn
+                { x: -36, z: -29, r: 10.5 },  // FPT Campus
+                { x: 36, z: -27, r: 10.5 },   // Project Hub
+                { x: -38, z: 27, r: 9.5 },    // BA Server Lab
+                { x: 38, z: 27, r: 9.5 },     // AI Core
+                { x: 0, z: 43, r: 10.5 }      // Cafe Pavilion
+            ];
+            for (let i = 0; i < monumentCenters.length; i++) {
+                const m = monumentCenters[i];
+                if (Math.hypot(x - m.x, z - m.z) < m.r + margin * 0.7) return false;
+            }
+            return true;
+        }
+
+        // Procedural Illuminated Architectural Window Facade Texture for Buildings
+        function createArchitecturalWindowTexture(bgHex, litColorHex, secColorHex, rows = 8, cols = 4) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = bgHex;
+            ctx.fillRect(0, 0, 256, 512);
+
+            const padX = 14, padY = 18;
+            const cellW = (256 - padX * (cols + 1)) / cols;
+            const cellH = (512 - padY * (rows + 1)) / rows;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const isLit = ((r * 7 + c * 3) % 5 !== 0);
+                    ctx.fillStyle = isLit ? ((r + c) % 3 === 0 ? secColorHex : litColorHex) : '#0f172a';
+                    const wx = padX + c * (cellW + padX);
+                    const wy = padY + r * (cellH + padY);
+                    drawRoundedRectPath(ctx, wx, wy, cellW, cellH, 4);
+                    ctx.fill();
+                }
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.needsUpdate = true;
+            return tex;
+        }
 
         function drawRoundedRectPath(ctx, x, y, w, h, r) {
             ctx.beginPath();
@@ -1401,6 +1473,7 @@
             const lineMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
 
             function addRoadSegment(x1, z1, x2, z2, width = 6.8) {
+                WORLD_ROADS.push({ x1, z1, x2, z2, width });
                 const dx = x2 - x1;
                 const dz = z2 - z1;
                 const len = Math.hypot(dx, dz);
@@ -1474,244 +1547,244 @@
                 createFloatingBanner(zone.name, zone.code, zone.color, zone.x, 12.2, zone.z - 2.5);
             });
 
+            // Shared Architectural Materials for Zone Monuments
+            const fptGlassMat = new THREE.MeshStandardMaterial({
+                color: 0x0ea5e9,
+                roughness: 0.08,
+                metalness: 0.9,
+                transparent: true,
+                opacity: 0.72
+            });
+            const whiteConcreteMat = new THREE.MeshStandardMaterial({
+                color: 0xf8fafc,
+                roughness: 0.35,
+                metalness: 0.15
+            });
+            const darkSteelMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                roughness: 0.28,
+                metalness: 0.82
+            });
+            const fptOrangeMat = new THREE.MeshStandardMaterial({
+                color: 0xf97316,
+                roughness: 0.25,
+                metalness: 0.45
+            });
+
             // =========================================================================
-            // ZONE 1 MONUMENT: JAPANESE TORII GATEWAY (BrSE Viet-Japan Symbol)
+            // ZONE 1 MONUMENT: JAPANESE TORII GATEWAY (BrSE Vietnam - Japan Track)
             // =========================================================================
             const toriiGroup = new THREE.Group();
             toriiGroup.position.set(0, 0, -2.5);
             const vermilionMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.25, metalness: 0.35 });
-            const blackBaseMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4, metalness: 0.6 });
-            const goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.15, metalness: 0.9 });
+            const blackBaseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 });
 
-            [-7.2, 7.2].forEach(xPos => {
-                // Pedestal base
-                const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.35, 1.4, 24), blackBaseMat);
-                ped.position.set(xPos, 0.7, 0);
-                // Main Vermilion Column
-                const col = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.88, 9.5, 24), vermilionMat);
-                col.position.set(xPos, 5.2, 0);
-                col.castShadow = true;
-                toriiGroup.add(ped, col);
+            [-3.4, 3.4].forEach(px => {
+                const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.68, 0.9, 20), blackBaseMat);
+                pedestal.position.set(px, 0.45, 0);
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.44, 7.2, 24), vermilionMat);
+                pillar.position.set(px, 3.8, 0);
+                pillar.castShadow = true;
+                toriiGroup.add(pedestal, pillar);
             });
 
-            // Kasagi (Top Curved Lintel) & Shimagi
-            const topBeam = new THREE.Mesh(new THREE.BoxGeometry(19.5, 0.95, 1.5), blackBaseMat);
-            topBeam.position.set(0, 10.2, 0);
-            topBeam.castShadow = true;
-            const subBeam = new THREE.Mesh(new THREE.BoxGeometry(18.2, 0.7, 1.2), vermilionMat);
-            subBeam.position.set(0, 9.45, 0);
-            // Nuki (Lower Crossbeam)
-            const lowerBeam = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.65, 0.95), vermilionMat);
-            lowerBeam.position.set(0, 7.6, 0);
-            lowerBeam.castShadow = true;
-            // Gakuzuka (Center Gold Emblem Plaque)
-            const plaque = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.8, 1.15), goldTrimMat);
-            plaque.position.set(0, 8.5, 0);
-
-            toriiGroup.add(topBeam, subBeam, lowerBeam, plaque);
+            const kasagiTop = new THREE.Mesh(new THREE.BoxGeometry(9.8, 0.55, 0.85), vermilionMat);
+            kasagiTop.position.set(0, 7.45, 0);
+            kasagiTop.castShadow = true;
+            const shimakiBeam = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.35, 0.65), blackBaseMat);
+            shimakiBeam.position.set(0, 7.05, 0);
+            const nukiBeam = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.38, 0.48), vermilionMat);
+            nukiBeam.position.set(0, 5.65, 0);
+            const tablet = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.5, 0.3), blackBaseMat);
+            tablet.position.set(0, 6.35, 0);
+            toriiGroup.add(kasagiTop, shimakiBeam, nukiBeam, tablet);
             scene.add(toriiGroup);
 
             // =========================================================================
-            // ZONE 2 MONUMENT: FPT UNIVERSITY HCMC ARCHITECTURAL CAMPUS (-36, -24)
+            // ZONE 2 MONUMENT: FPT UNIVERSITY CAMPUS & 4 COURSERA TROPHIES (-36, -24)
             // =========================================================================
             const fptGroup = new THREE.Group();
             fptGroup.position.set(-36, 0, -29);
-            const fptOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.25, metalness: 0.45 });
-            const fptGlassMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.08, metalness: 0.92 });
-            const whiteConcreteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.1 });
 
-            // Main Stepped Campus Tower & Glass Curtain Wall
-            const glassCore = new THREE.Mesh(new THREE.BoxGeometry(12.5, 8.2, 5.5), fptGlassMat);
-            glassCore.position.y = 4.1;
-            glassCore.castShadow = true;
-            fptGroup.add(glassCore);
+            const campusBase = new THREE.Mesh(new THREE.BoxGeometry(14, 0.5, 6.5), darkSteelMat);
+            campusBase.position.y = 0.25;
+            campusBase.receiveShadow = true;
+            fptGroup.add(campusBase);
 
-            // Architectural White Louver Fins & FPT Orange Accents
-            for (let f = 0; f < 4; f++) {
-                const floorSlab = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.35, 6.1), whiteConcreteMat);
-                floorSlab.position.y = 1.8 + f * 2.1;
-                floorSlab.castShadow = true;
-                fptGroup.add(floorSlab);
-            }
-            for (let v = -2; v <= 2; v++) {
-                const fin = new THREE.Mesh(new THREE.BoxGeometry(0.45, 8.5, 6.2), fptOrangeMat);
-                fin.position.set(v * 2.6, 4.25, 0);
-                fin.castShadow = true;
-                fptGroup.add(fin);
+            // Stepped Modern FPT Campus Blocks
+            for (let fl = 0; fl < 4; fl++) {
+                const w = 11.5 - fl * 1.1;
+                const floorBlock = new THREE.Mesh(new THREE.BoxGeometry(w, 1.55, 4.4), fl % 2 === 0 ? fptOrangeMat : fptGlassMat);
+                floorBlock.position.set((fl % 2 === 0 ? -0.35 : 0.35), 1.25 + fl * 1.6, 0);
+                floorBlock.castShadow = true;
+                fptGroup.add(floorBlock);
             }
 
-            // 4 Floating Crystal Coursera Specialization Trophies
+            // 4 Floating Crystal Coursera Specialization Pillars
             const certColors = [0xf59e0b, 0x38bdf8, 0x10b981, 0xa855f7];
-            for (let i = 0; i < 4; i++) {
-                const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.0, 1.6, 20), blackBaseMat);
-                ped.position.set(-6.6 + i * 4.4, 0.8, 5.2);
+            [-5.2, -1.8, 1.8, 5.2].forEach((cx, idx) => {
+                const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.4, 16), darkSteelMat);
+                ped.position.set(cx, 0.7, 4.2);
                 const crystal = new THREE.Mesh(
-                    new THREE.OctahedronGeometry(0.95, 0),
-                    new THREE.MeshStandardMaterial({ color: certColors[i], emissive: certColors[i], emissiveIntensity: 0.4, roughness: 0.1, metalness: 0.9 })
+                    new THREE.OctahedronGeometry(0.75, 0),
+                    new THREE.MeshStandardMaterial({ color: certColors[idx], emissive: certColors[idx], emissiveIntensity: 0.4, roughness: 0.15, metalness: 0.8 })
                 );
-                crystal.position.set(-6.6 + i * 4.4, 2.8, 5.2);
+                crystal.position.set(cx, 2.35, 4.2);
                 fptGroup.add(ped, crystal);
-                animatedObjects.push({ mesh: crystal, type: 'spin', speed: 1.4 + i * 0.2, baseY: 2.8 });
-            }
+                animatedObjects.push({ mesh: crystal, type: 'spin', speed: 1.5 + idx * 0.2, baseY: 2.35 });
+            });
             scene.add(fptGroup);
 
             // =========================================================================
-            // ZONE 3 MONUMENT: 4-PROJECT TECH SHOWCASE PAVILION (36, -24)
+            // ZONE 3 MONUMENT: LEGACYVAULT BANK DOOR & SMART CAR WASH ARCH (36, -24)
             // =========================================================================
             const projGroup = new THREE.Group();
-            projGroup.position.set(36, 0, -27);
+            projGroup.position.set(36, 0, -28);
 
-            // 3A. LegacyVault: Giant 3D Metallic Bank Vault Door with Rotating Gear
-            const vaultFrame = new THREE.Mesh(
-                new THREE.CylinderGeometry(3.2, 3.2, 0.9, 32).rotateX(Math.PI / 2),
-                new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.88, roughness: 0.2 })
-            );
-            vaultFrame.position.set(-5.8, 3.4, -2.5);
+            // 1. LegacyVault Armored Bank Vault Door (Left)
+            const vaultFrame = new THREE.Mesh(new THREE.BoxGeometry(5.5, 5.8, 1.2), darkSteelMat);
+            vaultFrame.position.set(-3.8, 2.9, 0);
             vaultFrame.castShadow = true;
-            const vaultWheel = new THREE.Mesh(
-                new THREE.TorusGeometry(1.7, 0.22, 16, 32),
-                new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.95, roughness: 0.15 })
+            const vaultDoor = new THREE.Mesh(
+                new THREE.CylinderGeometry(2.1, 2.1, 1.45, 32).rotateX(Math.PI / 2),
+                new THREE.MeshStandardMaterial({ color: 0x06b6d4, metalness: 0.9, roughness: 0.15 })
             );
-            vaultWheel.position.set(-5.8, 3.4, -1.95);
-            projGroup.add(vaultFrame, vaultWheel);
-            animatedObjects.push({ mesh: vaultWheel, type: 'spinZ', speed: 1.5, baseY: 3.4 });
+            vaultDoor.position.set(-3.8, 2.9, 0.15);
+            const vaultWheel = new THREE.Mesh(
+                new THREE.TorusGeometry(1.1, 0.16, 12, 24),
+                new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.9, roughness: 0.1 })
+            );
+            vaultWheel.position.set(-3.8, 2.9, 0.95);
+            projGroup.add(vaultFrame, vaultDoor, vaultWheel);
+            animatedObjects.push({ mesh: vaultWheel, type: 'spinZ', speed: 1.8, baseY: 2.9 });
 
-            // 3B. Smart Car Wash: Automated Drive-Through Wash Gantry with Spinning Brushes
-            const gantryMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.7, roughness: 0.2 });
-            const brushMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.35, roughness: 0.5 });
-            const gantryL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.2, 1.2), gantryMat);
-            gantryL.position.set(2.5, 2.6, -1.5);
-            const gantryR = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.2, 1.2), gantryMat);
-            gantryR.position.set(8.5, 2.6, -1.5);
-            const gantryTop = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.8, 1.4), gantryMat);
-            gantryTop.position.set(5.5, 5.2, -1.5);
-
-            const brushL = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 4.2, 16), brushMat);
-            brushL.position.set(3.4, 2.2, -1.5);
-            const brushR = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 4.2, 16), brushMat);
-            brushR.position.set(7.6, 2.2, -1.5);
-            projGroup.add(gantryL, gantryR, gantryTop, brushL, brushR);
-
-            // 3C. AI Stock LSTM: 3D Candlestick Hologram Chart
-            const barColors = [0x10b981, 0xf43f5e, 0x10b981, 0x38bdf8, 0x10b981];
-            const barHeights = [2.4, 1.7, 3.6, 2.9, 5.2];
-            barHeights.forEach((h, idx) => {
-                const bar = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.85, h, 0.85),
-                    new THREE.MeshStandardMaterial({ color: barColors[idx], emissive: barColors[idx], emissiveIntensity: 0.4, metalness: 0.6, roughness: 0.2 })
-                );
-                bar.position.set(-2.2 + idx * 1.1, h / 2, -5.2);
-                bar.castShadow = true;
-                projGroup.add(bar);
-            });
+            // 2. Smart Car Wash Automated Gantry & Spinning Brushes (Right)
+            const washArchL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.2, 1.2), fptGlassMat);
+            washArchL.position.set(1.8, 2.6, 0);
+            const washArchR = new THREE.Mesh(new THREE.BoxGeometry(0.7, 5.2, 1.2), fptGlassMat);
+            washArchR.position.set(6.2, 2.6, 0);
+            const washTop = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.8, 1.4), darkSteelMat);
+            washTop.position.set(4.0, 5.2, 0);
+            const topRoller = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.55, 0.55, 3.6, 16).rotateZ(Math.PI / 2),
+                new THREE.MeshStandardMaterial({ color: 0x22d3ee, roughness: 0.4 })
+            );
+            topRoller.position.set(4.0, 4.1, 0);
+            projGroup.add(washArchL, washArchR, washTop, topRoller);
             scene.add(projGroup);
 
             // =========================================================================
-            // ZONE 4 MONUMENT: BA ARCHITECTURE LAB & SQL SERVER DATA CENTER (-38, 24)
+            // ZONE 4 MONUMENT: BA & SQL SERVER DATA CENTER RACKS (-38, 24)
             // =========================================================================
             const baGroup = new THREE.Group();
-            baGroup.position.set(-38, 0, 27);
-            const rackMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.2 });
-            const ledGreenMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+            baGroup.position.set(-38, 0, 28);
 
-            // 3 High-Tech Server Racks with Blinking Blade LEDs
-            for (let r = 0; r < 3; r++) {
-                const rack = new THREE.Mesh(new THREE.BoxGeometry(2.2, 5.6, 2.2), rackMat);
-                rack.position.set(-4.8 + r * 2.6, 2.8, -2);
+            [-3.2, 0, 3.2].forEach((rx, i) => {
+                const rack = new THREE.Mesh(new THREE.BoxGeometry(2.4, 5.8, 2.2), darkSteelMat);
+                rack.position.set(rx, 2.9, 0);
                 rack.castShadow = true;
                 baGroup.add(rack);
-                for (let b = 0; b < 5; b++) {
-                    const led = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.14, 2.26), ledGreenMat);
-                    led.position.set(-4.8 + r * 2.6, 1.0 + b * 0.9, -2);
-                    baGroup.add(led);
-                }
-            }
 
-            // Holographic System Architecture Node Graph
-            const holoSphere = new THREE.Mesh(
-                new THREE.IcosahedronGeometry(2.9, 1),
-                new THREE.MeshStandardMaterial({ color: 0x34d399, wireframe: true, emissive: 0x10b981, emissiveIntensity: 0.7 })
-            );
-            holoSphere.position.set(4.5, 4.4, -2);
-            baGroup.add(holoSphere);
-            animatedObjects.push({ mesh: holoSphere, type: 'spin', speed: -1.1, baseY: 4.4 });
+                for (let b = 0; b < 6; b++) {
+                    const bladeLed = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.9, 0.16, 0.1),
+                        new THREE.MeshBasicMaterial({ color: (b + i) % 2 === 0 ? 0x10b981 : 0x38bdf8 })
+                    );
+                    bladeLed.position.set(rx, 1.1 + b * 0.75, -1.12);
+                    baGroup.add(bladeLed);
+                }
+            });
             scene.add(baGroup);
 
             // =========================================================================
-            // ZONE 5 MONUMENT: QUANTUM AI CORE & 6 LEADERSHIP OBELISKS (38, 24)
+            // ZONE 5 MONUMENT: AI AGENT GYROSCOPE REACTOR (38, 24)
             // =========================================================================
             const aiGroup = new THREE.Group();
-            aiGroup.position.set(38, 0, 27);
+            aiGroup.position.set(38, 0, 28);
 
+            const aiPedestal = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3.2, 1.2, 24), darkSteelMat);
+            aiPedestal.position.y = 0.6;
             const aiCore = new THREE.Mesh(
-                new THREE.OctahedronGeometry(1.8, 2),
-                new THREE.MeshStandardMaterial({ color: 0xc084fc, emissive: 0x9333ea, emissiveIntensity: 0.6, roughness: 0.1, metalness: 0.9 })
+                new THREE.IcosahedronGeometry(1.45, 1),
+                new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x9333ea, emissiveIntensity: 0.6, roughness: 0.1, metalness: 0.8 })
             );
-            aiCore.position.set(0, 5.0, -2);
-            aiGroup.add(aiCore);
-            animatedObjects.push({ mesh: aiCore, type: 'spin', speed: 1.6, baseY: 5.0 });
+            aiCore.position.y = 4.2;
+            const gyroRing1 = new THREE.Mesh(
+                new THREE.TorusGeometry(2.5, 0.14, 16, 48),
+                new THREE.MeshBasicMaterial({ color: 0xc084fc })
+            );
+            gyroRing1.position.y = 4.2;
+            const gyroRing2 = new THREE.Mesh(
+                new THREE.TorusGeometry(3.2, 0.12, 16, 48),
+                new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+            );
+            gyroRing2.position.y = 4.2;
+            gyroRing2.rotation.x = Math.PI / 3;
 
-            // Triple Gyroscopic Rings around AI Core
-            [2.8, 3.6, 4.4].forEach((rad, idx) => {
-                const gyro = new THREE.Mesh(
-                    new THREE.TorusGeometry(rad, 0.12, 16, 64),
-                    new THREE.MeshStandardMaterial({ color: idx % 2 === 0 ? 0xa855f7 : 0x38bdf8, emissive: 0x6b21a8, emissiveIntensity: 0.4, metalness: 0.9, roughness: 0.1 })
-                );
-                gyro.position.set(0, 5.0, -2);
-                aiGroup.add(gyro);
-                animatedObjects.push({ mesh: gyro, type: 'spin', speed: (idx % 2 === 0 ? 1.2 : -1.4) * (1 + idx * 0.2), baseY: 5.0 });
-            });
-
-            // 6 Golden Leadership Pillars (CSD201, SWP391, SWT301, IOT102, SWR302, DBI202)
-            for (let p = 0; p < 6; p++) {
-                const ang = (p / 6) * Math.PI - Math.PI / 2;
-                const obelisk = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.35, 0.55, 3.8, 6),
-                    goldTrimMat
-                );
-                obelisk.position.set(Math.sin(ang) * 6.8, 1.9, -2 + Math.cos(ang) * 4.5);
-                obelisk.castShadow = true;
-                aiGroup.add(obelisk);
-            }
+            aiGroup.add(aiPedestal, aiCore, gyroRing1, gyroRing2);
+            animatedObjects.push({ mesh: aiCore, type: 'spin', speed: 1.6, baseY: 4.2 });
+            animatedObjects.push({ mesh: gyroRing1, type: 'spin', speed: 2.2, baseY: 4.2 });
+            animatedObjects.push({ mesh: gyroRing2, type: 'spinZ', speed: 1.8, baseY: 4.2 });
             scene.add(aiGroup);
 
             // =========================================================================
-            // ZONE 6 MONUMENT: ESPRESSO LOUNGE & TRANSPARENT RGB GAMING PC RIG (0, 38)
+            // ZONE 6 MONUMENT: ARCHITECTURAL GLASS CAFE PAVILION & CUSTOM PC LOUNGE (0, 38)
             // =========================================================================
             const cafeGroup = new THREE.Group();
-            cafeGroup.position.set(0, 0, 42);
+            cafeGroup.position.set(0, 0, 43);
 
-            // Giant Porcelain Latte Cup & Saucer
-            const saucer = new THREE.Mesh(
-                new THREE.CylinderGeometry(3.4, 2.6, 0.35, 32),
-                whiteConcreteMat
-            );
-            saucer.position.set(-4.5, 0.18, 0);
+            // Boutique Roastery Cafe Building with Warm Wood Slats & Glass Storefront
+            const cafeWoodMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.45, metalness: 0.15 });
+            const cafeDarkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.7 });
+            const warmGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef3c7 });
+
+            const cafeDeck = new THREE.Mesh(new THREE.BoxGeometry(15.5, 0.35, 7.2), cafeDarkMat);
+            cafeDeck.position.set(0, 0.18, 2.5);
+            cafeDeck.receiveShadow = true;
+            cafeGroup.add(cafeDeck);
+
+            const cafeRoom = new THREE.Mesh(new THREE.BoxGeometry(9.2, 4.6, 4.8), fptGlassMat);
+            cafeRoom.position.set(-2.2, 2.45, 3.0);
+            cafeRoom.castShadow = true;
+            cafeGroup.add(cafeRoom);
+
+            const warmInterior = new THREE.Mesh(new THREE.BoxGeometry(8.4, 3.8, 4.0), warmGlowMat);
+            warmInterior.position.set(-2.2, 2.35, 3.0);
+            cafeGroup.add(warmInterior);
+
+            const cafeRoof = new THREE.Mesh(new THREE.BoxGeometry(10.6, 0.45, 6.2), cafeWoodMat);
+            cafeRoof.position.set(-2.2, 4.9, 2.8);
+            cafeRoof.castShadow = true;
+            cafeGroup.add(cafeRoof);
+
+            // Giant Porcelain Latte Cup & Saucer on Rooftop Signboard
+            const saucer = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 1.8, 0.28, 32), whiteConcreteMat);
+            saucer.position.set(-2.2, 5.25, 2.8);
             const cupBody = new THREE.Mesh(
-                new THREE.CylinderGeometry(2.4, 1.85, 3.8, 32),
+                new THREE.CylinderGeometry(1.65, 1.25, 2.4, 32),
                 new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.18, metalness: 0.3 })
             );
-            cupBody.position.set(-4.5, 2.1, 0);
+            cupBody.position.set(-2.2, 6.5, 2.8);
             cupBody.castShadow = true;
             const coffeeTop = new THREE.Mesh(
-                new THREE.CircleGeometry(2.25, 32),
+                new THREE.CircleGeometry(1.55, 32),
                 new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.4 })
             );
             coffeeTop.rotation.x = -Math.PI / 2;
-            coffeeTop.position.set(-4.5, 4.02, 0);
+            coffeeTop.position.set(-2.2, 7.72, 2.8);
             const handle = new THREE.Mesh(
-                new THREE.TorusGeometry(1.05, 0.28, 16, 32),
+                new THREE.TorusGeometry(0.72, 0.2, 16, 32),
                 new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.2 })
             );
-            handle.position.set(-2.2, 2.2, 0);
+            handle.position.set(-0.6, 6.5, 2.8);
             cafeGroup.add(saucer, cupBody, coffeeTop, handle);
 
             // Custom Watercooled Glass Gaming/Dev PC Tower with Spinning RGB Fans
             const pcChassis = new THREE.Mesh(
-                new THREE.BoxGeometry(2.8, 5.6, 4.8),
+                new THREE.BoxGeometry(2.8, 5.4, 4.6),
                 new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85, roughness: 0.15 })
             );
-            pcChassis.position.set(4.5, 2.8, 0);
+            pcChassis.position.set(4.8, 2.85, 2.6);
             pcChassis.castShadow = true;
             cafeGroup.add(pcChassis);
 
@@ -1722,9 +1795,9 @@
                     new THREE.TorusGeometry(0.68, 0.1, 12, 24),
                     new THREE.MeshBasicMaterial({ color: fanColors[f] })
                 );
-                fanRing.position.set(4.5, 1.3 + f * 1.5, -2.45);
+                fanRing.position.set(4.8, 1.4 + f * 1.45, 0.25);
                 cafeGroup.add(fanRing);
-                animatedObjects.push({ mesh: fanRing, type: 'spinZ', speed: 4.0, baseY: 1.3 + f * 1.5 });
+                animatedObjects.push({ mesh: fanRing, type: 'spinZ', speed: 4.0, baseY: 1.4 + f * 1.45 });
             }
 
             scene.add(cafeGroup);
@@ -1769,64 +1842,302 @@
         }
 
         function buildSceneryTreesAndLamps() {
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.85 });
-            const pineMat = new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.5 });
-            const sakuraMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0xdb2777, emissiveIntensity: 0.15, roughness: 0.4 });
-            const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
+            // =========================================================================
+            // 1. ARCHITECTURAL CITYSCAPE BUILDINGS & JAPANESE MACHIYA HOUSES (ROAD-SAFE)
+            // =========================================================================
+            const windowTexCyan = createArchitecturalWindowTexture('#0b1324', '#38bdf8', '#f97316', 9, 4);
+            const windowTexWarm = createArchitecturalWindowTexture('#1c1917', '#fde68a', '#fb923c', 5, 4);
 
-            const treeCoords = [
-                [-16, -8], [16, -8], [-18, 12], [18, 12],
-                [-52, -10], [-50, -35], [-22, -42],
-                [52, -10], [50, -35], [22, -42],
-                [-52, 12], [-50, 38], [52, 12], [50, 38],
-                [-18, 48], [18, 48], [-28, 38], [28, 38]
-            ];
+            const modernTowerMat = new THREE.MeshStandardMaterial({
+                map: windowTexCyan,
+                roughness: 0.2,
+                metalness: 0.75,
+                emissive: 0x0ea5e9,
+                emissiveMap: windowTexCyan,
+                emissiveIntensity: 0.45
+            });
+            const machiyaWallMat = new THREE.MeshStandardMaterial({
+                map: windowTexWarm,
+                roughness: 0.5,
+                metalness: 0.2,
+                emissive: 0xf59e0b,
+                emissiveMap: windowTexWarm,
+                emissiveIntensity: 0.5
+            });
+            const darkFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 });
+            const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.6 });
+            const woodPillarMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
+            const lanternMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
 
-            treeCoords.forEach(([tx, tz], i) => {
-                const tree = new THREE.Group();
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.52, 2.4, 10), trunkMat);
-                trunk.position.y = 1.2;
-                trunk.castShadow = true;
-                tree.add(trunk);
+            // Helper: Build a Multi-Story Stepped Tech Office / Apartment Building
+            function createModernTechBuilding(x, z, w, h, d, rotY = 0, accentHex = 0x38bdf8) {
+                if (!isSceneryPositionSafe(x, z, Math.max(w, d) * 0.65 + 1.8)) return;
+                const bGroup = new THREE.Group();
+                bGroup.position.set(x, 0, z);
+                bGroup.rotation.y = rotY;
 
-                const isSakura = i % 2 === 0;
-                const mat = isSakura ? sakuraMat : pineMat;
+                // Ground Lobby Podium
+                const podium = new THREE.Mesh(new THREE.BoxGeometry(w + 1.2, 1.8, d + 1.2), darkFrameMat);
+                podium.position.y = 0.9;
+                podium.castShadow = true;
+                podium.receiveShadow = true;
+                bGroup.add(podium);
 
-                if (isSakura) {
-                    // Lush Spherical Blossom Clusters
-                    [[0, 3.6, 0, 1.9], [-1.1, 3.1, 0.6, 1.3], [1.1, 3.2, -0.5, 1.35], [0, 4.5, 0.4, 1.4]].forEach(([bx, by, bz, br]) => {
-                        const crown = new THREE.Mesh(new THREE.DodecahedronGeometry(br, 1), mat);
-                        crown.position.set(bx, by, bz);
-                        crown.castShadow = true;
-                        tree.add(crown);
+                // Illuminated Window Tower Core
+                const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), modernTowerMat);
+                tower.position.y = 1.8 + h / 2;
+                tower.castShadow = true;
+                tower.receiveShadow = true;
+                bGroup.add(tower);
+
+                // Stepped Upper Penthouse & Glowing Neon Crown
+                const crown = new THREE.Mesh(new THREE.BoxGeometry(w * 0.78, 1.6, d * 0.78), darkFrameMat);
+                crown.position.y = 1.8 + h + 0.8;
+                crown.castShadow = true;
+                bGroup.add(crown);
+
+                const neonTrim = new THREE.Mesh(
+                    new THREE.BoxGeometry(w + 0.18, 0.22, d + 0.18),
+                    new THREE.MeshBasicMaterial({ color: accentHex })
+                );
+                neonTrim.position.y = 1.8 + h + 0.05;
+                bGroup.add(neonTrim);
+
+                // Rooftop Communications Spire
+                const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.14, 3.2, 8), darkFrameMat);
+                spire.position.set(w * 0.2, 1.8 + h + 3.2, 0);
+                const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xf43f5e }));
+                beacon.position.set(w * 0.2, 1.8 + h + 4.8, 0);
+                bGroup.add(spire, beacon);
+
+                scene.add(bGroup);
+            }
+
+            // Helper: Build a Traditional Japanese 2-Story Machiya / Pagoda House (BrSE Theme)
+            function createJapaneseMachiyaHouse(x, z, rotY = 0) {
+                if (!isSceneryPositionSafe(x, z, 5.2)) return;
+                const hGroup = new THREE.Group();
+                hGroup.position.set(x, 0, z);
+                hGroup.rotation.y = rotY;
+
+                // Stone Foundation
+                const base = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.6, 5.4), darkFrameMat);
+                base.position.y = 0.3;
+                base.receiveShadow = true;
+                hGroup.add(base);
+
+                // 1st Floor Timber & Shoji Body
+                const floor1 = new THREE.Mesh(new THREE.BoxGeometry(6.0, 2.8, 4.6), machiyaWallMat);
+                floor1.position.y = 2.0;
+                floor1.castShadow = true;
+                hGroup.add(floor1);
+
+                // 1st Tier Curved Eave Roof (4-sided Pyramid Cone)
+                const roof1 = new THREE.Mesh(new THREE.ConeGeometry(5.6, 1.5, 4), roofTileMat);
+                roof1.position.y = 3.9;
+                roof1.rotation.y = Math.PI / 4;
+                roof1.scale.set(1.15, 1, 0.92);
+                roof1.castShadow = true;
+                hGroup.add(roof1);
+
+                // 2nd Floor Loft
+                const floor2 = new THREE.Mesh(new THREE.BoxGeometry(4.4, 2.1, 3.4), machiyaWallMat);
+                floor2.position.y = 5.1;
+                floor2.castShadow = true;
+                hGroup.add(floor2);
+
+                // Top Gabled Pagoda Roof with Gold Finial
+                const roof2 = new THREE.Mesh(new THREE.ConeGeometry(4.3, 1.8, 4), roofTileMat);
+                roof2.position.y = 6.8;
+                roof2.rotation.y = Math.PI / 4;
+                roof2.scale.set(1.15, 1, 0.92);
+                roof2.castShadow = true;
+                hGroup.add(roof2);
+
+                // Hanging Warm Chochin Lanterns at Entrance
+                [-1.8, 1.8].forEach(lx => {
+                    const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.55, 12), lanternMat);
+                    lantern.position.set(lx, 2.6, 2.55);
+                    hGroup.add(lantern);
+                });
+
+                scene.add(hGroup);
+            }
+
+            // Place Architectural Tech Towers & Japanese Houses around the Island Perimeter (100% Road-Clear)
+            createModernTechBuilding(-19, -39, 5.8, 13.5, 5.2, 0.25, 0xf97316);
+            createModernTechBuilding(19, -39, 5.8, 14.5, 5.2, -0.25, 0x06b6d4);
+            createModernTechBuilding(-56, -6, 6.2, 15.0, 5.6, 0.5, 0xf59e0b);
+            createModernTechBuilding(56, -6, 6.2, 16.0, 5.6, -0.5, 0x38bdf8);
+            createModernTechBuilding(-56, 12, 5.6, 12.5, 5.2, 0.35, 0x10b981);
+            createModernTechBuilding(56, 12, 5.6, 13.0, 5.2, -0.35, 0xa855f7);
+            createModernTechBuilding(-23, 52, 5.5, 11.5, 5.0, 0.4, 0xf43f5e);
+            createModernTechBuilding(23, 52, 5.5, 12.0, 5.0, -0.4, 0x38bdf8);
+
+            // Place Japanese Machiya Houses in scenic courtyards between zones
+            createJapaneseMachiyaHouse(-16, -29, 0.15);
+            createJapaneseMachiyaHouse(16, -29, -0.15);
+            createJapaneseMachiyaHouse(-26, 2, Math.PI / 2);
+            createJapaneseMachiyaHouse(26, 2, -Math.PI / 2);
+            createJapaneseMachiyaHouse(-20, 36, 0.35);
+            createJapaneseMachiyaHouse(20, 36, -0.35);
+
+            // =========================================================================
+            // 2. UPGRADED BOTANICAL 3D TREES (SAKURA, MULTI-TIER PINE, AUTUMN MAPLE)
+            // =========================================================================
+            const barkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
+            const sakuraDeepMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.45 });
+            const sakuraLightMat = new THREE.MeshStandardMaterial({ color: 0xf9a8d4, emissive: 0xdb2777, emissiveIntensity: 0.15, roughness: 0.4 });
+            const pineDarkMat = new THREE.MeshStandardMaterial({ color: 0x047857, roughness: 0.55 });
+            const pineBrightMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.5 });
+            const mapleRedMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, emissive: 0x9f1239, emissiveIntensity: 0.15, roughness: 0.45 });
+            const mapleAmberMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.45 });
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.85, metalness: 0.1 });
+
+            function spawnBotanicalTree(x, z, styleIdx, scale = 1.0) {
+                const treeGroup = new THREE.Group();
+
+                // Decorative Low-Poly Garden Rocks & Petal/Grass Bed at Base
+                const rock1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.55, 0), rockMat);
+                rock1.position.set(0.65, 0.25, 0.4);
+                rock1.scale.set(1.2, 0.7, 1.0);
+                const rock2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.38, 0), rockMat);
+                rock2.position.set(-0.55, 0.18, -0.45);
+                treeGroup.add(rock1, rock2);
+
+                if (styleIdx === 0) {
+                    // STYLE 0: Multi-Branch Japanese Sakura Cherry Blossom Tree
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.52, 2.3, 10), barkMat);
+                    trunk.position.y = 1.15;
+                    trunk.castShadow = true;
+                    treeGroup.add(trunk);
+
+                    // 3 Angled Wooden Branches + Multi-Tone Blossom Canopies
+                    const branches = [
+                        { bx: -0.65, by: 2.4, bz: 0.35, rx: 0.25, rz: 0.48, cx: -1.25, cy: 3.3, cz: 0.6, r: 1.45, mat: sakuraLightMat },
+                        { bx: 0.65, by: 2.5, bz: -0.3, rx: -0.22, rz: -0.45, cx: 1.25, cy: 3.4, cz: -0.5, r: 1.5, mat: sakuraDeepMat },
+                        { bx: 0.0, by: 2.8, bz: 0.0, rx: 0.08, rz: 0.05, cx: 0.0, cy: 4.2, cz: 0.1, r: 1.85, mat: sakuraLightMat }
+                    ];
+                    branches.forEach(b => {
+                        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 1.6, 8), barkMat);
+                        br.position.set(b.bx, b.by, b.bz);
+                        br.rotation.set(b.rx, 0, b.rz);
+                        br.castShadow = true;
+                        const foliage = new THREE.Mesh(new THREE.IcosahedronGeometry(b.r, 1), b.mat);
+                        foliage.position.set(b.cx, b.cy, b.cz);
+                        foliage.scale.set(1.2, 0.78, 1.15);
+                        foliage.castShadow = true;
+                        treeGroup.add(br, foliage);
+                    });
+
+                    // Fallen Sakura Petal Ring on Ground
+                    const petalBed = new THREE.Mesh(
+                        new THREE.CircleGeometry(1.8, 16),
+                        new THREE.MeshBasicMaterial({ color: 0xf472b6, transparent: true, opacity: 0.35 })
+                    );
+                    petalBed.rotation.x = -Math.PI / 2;
+                    petalBed.position.y = 0.03;
+                    treeGroup.add(petalBed);
+
+                } else if (styleIdx === 1) {
+                    // STYLE 1: 4-Tiered Layered Alpine Pine / Cedar Tree
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.46, 2.2, 8), barkMat);
+                    trunk.position.y = 1.1;
+                    trunk.castShadow = true;
+                    treeGroup.add(trunk);
+
+                    const tiers = [
+                        { y: 2.3, r: 2.15, h: 1.9, mat: pineDarkMat },
+                        { y: 3.4, r: 1.75, h: 1.75, mat: pineBrightMat },
+                        { y: 4.4, r: 1.32, h: 1.55, mat: pineDarkMat },
+                        { y: 5.3, r: 0.85, h: 1.35, mat: pineBrightMat }
+                    ];
+                    tiers.forEach((t, idx) => {
+                        const cone = new THREE.Mesh(new THREE.ConeGeometry(t.r, t.h, 7), t.mat);
+                        cone.position.y = t.y;
+                        cone.rotation.y = idx * 0.45;
+                        cone.castShadow = true;
+                        treeGroup.add(cone);
                     });
                 } else {
-                    const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.1, 3.2, 8), mat);
-                    c1.position.y = 3.2;
-                    c1.castShadow = true;
-                    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.6, 8), mat);
-                    c2.position.y = 4.8;
-                    c2.castShadow = true;
-                    tree.add(c1, c2);
+                    // STYLE 2: Japanese Autumn Momiji (Crimson & Amber Maple Tree)
+                    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.48, 2.5, 10), barkMat);
+                    trunk.position.y = 1.25;
+                    trunk.castShadow = true;
+                    treeGroup.add(trunk);
+
+                    const puffs = [
+                        [0, 3.9, 0, 1.75, mapleRedMat],
+                        [-1.05, 3.2, 0.55, 1.25, mapleAmberMat],
+                        [1.05, 3.3, -0.45, 1.3, mapleRedMat],
+                        [0.35, 4.6, 0.4, 1.15, mapleAmberMat]
+                    ];
+                    puffs.forEach(([px, py, pz, pr, pMat]) => {
+                        const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(pr, 1), pMat);
+                        puff.position.set(px, py, pz);
+                        puff.scale.set(1.15, 0.82, 1.15);
+                        puff.castShadow = true;
+                        treeGroup.add(puff);
+                    });
                 }
 
-                tree.position.set(tx, 0, tz);
-                scene.add(tree);
+                treeGroup.position.set(x, 0, z);
+                treeGroup.scale.setScalar(scale);
+                scene.add(treeGroup);
+            }
+
+            // Carefully Curated Scenery Tree Coordinates (Guaranteed off-road via isSceneryPositionSafe)
+            const candidateTreeSpots = [
+                // Inner courtyard islands between radial roads
+                [-9, -15], [9, -15], [-21, -5], [21, -5],
+                [-11, 21], [11, 21], [-22, 16], [22, 16],
+                [-26, -10], [26, -10], [-28, 12], [28, 12],
+                // Outer scenic groves around zones
+                [-49, -18], [-48, -34], [-25, -43], [-10, -34],
+                [49, -18], [48, -34], [25, -43], [10, -34],
+                [-50, 18], [-49, 34], [-28, 44],
+                [50, 18], [49, 34], [28, 44],
+                [-14, 48], [14, 48], [-15, 31], [15, 31],
+                [-62, 2], [62, 2], [-44, 2], [44, 2]
+            ];
+
+            candidateTreeSpots.forEach(([tx, tz], idx) => {
+                // Only place the tree if it passes the strict road & monument clearance test
+                if (isSceneryPositionSafe(tx, tz, 2.8)) {
+                    const scale = 0.92 + (idx % 3) * 0.14;
+                    spawnBotanicalTree(tx, tz, idx % 3, scale);
+                }
             });
 
-            // Cyber Streetlights along the main plaza
-            [[-9, 8], [9, 8], [-9, -8], [9, -8], [-18, -14], [18, -14], [-18, 20], [18, 20]].forEach(([lx, lz]) => {
+            // =========================================================================
+            // 3. ROAD-SIDE CYBER STREETLIGHTS (ALIGNED STRICTLY OUTSIDE ROAD CURBS)
+            // =========================================================================
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.2 });
+            const lampSpots = [
+                // Along South Boulevard (0,4 -> 0,38), road width = 6.8 (half = 3.4), placed at x = ±5.4
+                [-5.4, 16, 1], [5.4, 16, -1], [-5.4, 26, 1], [5.4, 26, -1],
+                // Along North Highway (-36,-24 -> 36,-24), placed safely at z = -19.5
+                [-20, -19.5, 1], [20, -19.5, -1], [0, -19.5, 1],
+                // Along West & East Boulevards, placed safely outside road edges
+                [-31.5, -6, 1], [-31.5, 8, 1], [31.5, -6, -1], [31.5, 8, -1]
+            ];
+
+            lampSpots.forEach(([lx, lz, armDir]) => {
+                if (!isSceneryPositionSafe(lx, lz, 1.3)) return;
                 const lamp = new THREE.Group();
-                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 6.2, 12), poleMat);
-                pole.position.y = 3.1;
-                const arm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.14, 0.14), poleMat);
-                arm.position.set(lx < 0 ? 0.6 : -0.6, 6.1, 0);
+                const base = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.32, 0.6, 12), poleMat);
+                base.position.y = 0.3;
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, 6.4, 12), poleMat);
+                pole.position.y = 3.2;
+                pole.castShadow = true;
+                const arm = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.14, 0.14), poleMat);
+                arm.position.set(armDir * 0.65, 6.3, 0);
                 const bulb = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.6, 0.16, 0.3),
+                    new THREE.BoxGeometry(0.68, 0.16, 0.32),
                     new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
                 );
-                bulb.position.set(lx < 0 ? 1.1 : -1.1, 6.0, 0);
-                lamp.add(pole, arm, bulb);
+                bulb.position.set(armDir * 1.15, 6.2, 0);
+                lamp.add(base, pole, arm, bulb);
                 lamp.position.set(lx, 0, lz);
                 scene.add(lamp);
             });
