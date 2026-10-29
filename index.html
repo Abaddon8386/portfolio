@@ -1,0 +1,2230 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Tran Xuan Thai (Abaddon) — 3D Interactive BA & BrSE Portfolio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Google Fonts: Inter & Space Grotesk & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Space Grotesk", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            colors: {
+              brand: {
+                50: "#fff7ed",
+                400: "#fb923c",
+                500: "#f97316",
+                600: "#ea580c",
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      * {
+        user-select: none;
+        -webkit-user-select: none;
+        box-sizing: border-box;
+      }
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #0f172a;
+        font-family: "Inter", sans-serif;
+      }
+      #canvas-container {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      /* Glassmorphism Utilities */
+      .glass-panel {
+        background: rgba(15, 23, 42, 0.84);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow:
+          0 20px 50px rgba(0, 0, 0, 0.5),
+          0 0 25px rgba(249, 115, 22, 0.12);
+      }
+      .glass-pill {
+        background: rgba(15, 23, 42, 0.78);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      /* Custom Scrollbar for HUD & Modal */
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.4);
+        border-radius: 8px;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background: rgba(249, 115, 22, 0.6);
+        border-radius: 8px;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(249, 115, 22, 0.9);
+      }
+      /* Keycap styling */
+      .keycap {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        height: 26px;
+        padding: 0 6px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 700;
+        color: #f8fafc;
+        background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+        border: 1px solid #475569;
+        border-bottom: 3px solid #0f172a;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        transition: all 0.1s ease;
+      }
+      .keycap.active {
+        transform: translateY(2px);
+        border-bottom-width: 1px;
+        background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+        border-color: #fdba74;
+      }
+      /* Touch button active */
+      .touch-btn:active {
+        transform: scale(0.92);
+        background: rgba(249, 115, 22, 0.8) !important;
+      }
+      /* Animations */
+      @keyframes pulseGlow {
+        0%,
+        100% {
+          box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 28px rgba(249, 115, 22, 0.85);
+        }
+      }
+      .pulse-orange {
+        animation: pulseGlow 2.4s infinite ease-in-out;
+      }
+      .selectable-text {
+        user-select: text;
+        -webkit-user-select: text;
+      }
+    </style>
+  </head>
+  <body class="text-slate-100 antialiased selection:bg-orange-500 selection:text-white">
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Welcome / Intro Overlay Screen -->
+    <div id="intro-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl transition-opacity duration-500">
+      <div class="glass-panel max-w-2xl w-full rounded-3xl p-6 sm:p-8 border border-orange-500/30 relative overflow-hidden">
+        <!-- Decorative Glow -->
+        <div class="absolute -top-24 -right-24 w-56 h-56 bg-orange-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-56 h-56 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-5 border-b border-slate-700/70">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-400 text-xs font-mono uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-orange-400 animate-ping"></span>
+              Interactive 3D World • Three.js
+            </div>
+            <h1 class="text-2xl sm:text-4xl font-display font-extrabold tracking-tight text-white">TRAN XUAN THAI <span class="text-orange-400 font-mono text-lg sm:text-2xl">(Abaddon)</span></h1>
+            <p class="text-slate-300 text-sm sm:text-base mt-1 font-medium">Business Analyst Intern &bull; Aspiring Bridge Software Engineer (BrSE)</p>
+          </div>
+          <div class="flex flex-col items-start sm:items-end text-xs font-mono text-slate-400">
+            <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-graduation-cap mr-1"></i>FPT University HCMC</span>
+            <span>GPA: 8.0/10 • Sem 5/9</span>
+            <span>Binh Hoa Ward, HCMC</span>
+          </div>
+        </div>
+
+        <div class="my-5 space-y-4 text-sm text-slate-300 leading-relaxed">
+          <p>Chào mừng bạn đến với <strong>3D Interactive Portfolio</strong> của <strong>Trần Xuân Thái</strong>! Điều khiển chiếc xe Cyber-Rover chạy quanh hòn đảo 3D để khám phá <strong>6 khu vực (Zones)</strong> tương ứng với kinh nghiệm dự án, kỹ năng phân tích nghiệp vụ (BA), kỹ năng kỹ thuật và định hướng BrSE Việt - Nhật.</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-900/70 p-4 rounded-2xl border border-slate-800">
+            <div class="flex items-start gap-3">
+              <div class="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
+                <i class="fa-solid fa-gamepad"></i>
+              </div>
+              <div>
+                <div class="font-semibold text-white text-xs uppercase tracking-wider">Cách điều khiển xe</div>
+                <p class="text-xs text-slate-400 mt-0.5">Dùng phím <span class="text-orange-300 font-mono">W A S D</span> hoặc <span class="text-orange-300 font-mono">Mũi tên</span> để lái, <span class="text-orange-300 font-mono">Shift</span> tăng tốc, <span class="text-orange-300 font-mono">Space</span> phanh/drift, hoặc chạm nút trên màn hình.</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <div>
+                <div class="font-semibold text-white text-xs uppercase tracking-wider">Dành cho Nhà tuyển dụng (HR)</div>
+                <p class="text-xs text-slate-400 mt-0.5">Bấm vào thanh điều hướng phía trên để <strong>Tự động lái (Autopilot)</strong> tới từng trạm, hoặc mở <strong>Fast-Read CV</strong> để xem toàn bộ CV ngay lập tức.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center gap-3 pt-2">
+          <button id="start-driving-btn" class="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 font-display font-bold text-base shadow-lg shadow-orange-500/25 transition flex items-center justify-center gap-2 cursor-pointer pulse-orange">
+            <i class="fa-solid fa-car-side text-lg"></i>
+            <span>BẮT ĐẦU LÁI XE KHÁM PHÁ (START DRIVING)</span>
+          </button>
+          <button id="intro-fast-cv-btn" class="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-medium text-sm transition flex items-center justify-center gap-2 cursor-pointer">
+            <i class="fa-regular fa-file-lines text-cyan-400"></i>
+            <span>Xem Bản CV Chuẩn (Fast-Read)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP NAVIGATION BAR (Zone Teleport / Autopilot & Fast-Read CV) -->
+    <header class="fixed top-0 left-0 right-0 z-30 p-2.5 sm:p-4 pointer-events-none">
+      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+        <!-- Brand Identity Pill -->
+        <div class="glass-pill px-3.5 py-2 rounded-2xl flex items-center gap-3 pointer-events-auto shadow-lg">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-slate-950 font-display font-extrabold text-sm shadow-md">TX</div>
+          <div class="hidden sm:block">
+            <div class="flex items-center gap-2">
+              <span class="font-display font-bold text-sm text-white tracking-tight">Tran Xuan Thai</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-300 border border-orange-500/30">BA &bull; BrSE</span>
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-2">
+              <span><i class="fa-solid fa-location-dot text-orange-400 mr-1"></i>HCMC</span>
+              <span>&bull;</span>
+              <span id="active-zone-indicator" class="text-cyan-400 font-mono">Đang tự do di chuyển</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Zone Autopilot / Teleport Bar -->
+        <nav class="glass-pill p-1.5 rounded-2xl flex items-center gap-1 overflow-x-auto max-w-full pointer-events-auto custom-scroll">
+          <button onclick="navigateToZone('about')" id="nav-about" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-flag-checkered text-orange-400"></i>
+            <span>1. Spawn / About</span>
+          </button>
+          <button onclick="navigateToZone('education')" id="nav-education" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-graduation-cap text-amber-400"></i>
+            <span>2. FPT & Certs</span>
+          </button>
+          <button onclick="navigateToZone('projects')" id="nav-projects" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-cubes text-cyan-400"></i>
+            <span>3. Projects (4)</span>
+          </button>
+          <button onclick="navigateToZone('skills')" id="nav-skills" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-diagram-project text-emerald-400"></i>
+            <span>4. BA & Tech</span>
+          </button>
+          <button onclick="navigateToZone('ai_leadership')" id="nav-ai_leadership" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-microchip text-purple-400"></i>
+            <span>5. AI & Leadership</span>
+          </button>
+          <button onclick="navigateToZone('cafe')" id="nav-cafe" class="zone-nav-btn px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <i class="fa-solid fa-mug-hot text-rose-400"></i>
+            <span>6. Cafe & Contact</span>
+          </button>
+        </nav>
+
+        <!-- Action Buttons (Theme, Reset, Fast-Read CV) -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+          <button onclick="toggleDayNight()" id="theme-btn" title="Đổi ánh sáng Ngày / Hoàng hôn / Đêm Cyber" class="glass-pill w-9 h-9 rounded-xl flex items-center justify-center text-amber-300 hover:bg-slate-800 transition cursor-pointer">
+            <i class="fa-solid fa-sun" id="theme-icon"></i>
+          </button>
+          <button onclick="resetCarAndBricks()" title="Reset vị trí xe & Xếp lại gạch 3D (Phím R)" class="glass-pill px-3 h-9 rounded-xl flex items-center gap-1.5 text-xs font-mono text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+            <i class="fa-solid fa-rotate-left text-orange-400"></i>
+            <span class="hidden md:inline">Reset (R)</span>
+          </button>
+          <button onclick="toggleFastCVModal(true)" class="px-3.5 h-9 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-display font-bold text-xs shadow-lg shadow-cyan-500/20 transition flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-file-contract"></i>
+            <span>Recruiter Fast-Read CV</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- AUTOPILOT STATUS BANNER -->
+    <div id="autopilot-banner" class="fixed top-20 left-1/2 -translate-x-1/2 z-20 hidden pointer-events-auto">
+      <div class="glass-pill px-4 py-2 rounded-full border border-cyan-400/50 flex items-center gap-3 shadow-lg shadow-cyan-500/10">
+        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+        <span class="text-xs font-mono text-cyan-300" id="autopilot-text">AUTOPILOT: Đang lái tới trạm...</span>
+        <button onclick="cancelAutopilot()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full border border-slate-600 cursor-pointer">Hủy (Lái tay)</button>
+      </div>
+    </div>
+
+    <!-- SLIDE-IN GLASSMORPHISM ZONE INSPECTOR HUD (Right Side) -->
+    <aside id="zone-hud-panel" class="fixed top-16 sm:top-20 right-3 sm:right-5 bottom-24 sm:bottom-6 w-[calc(100vw-24px)] sm:w-[460px] md:w-[510px] z-30 pointer-events-none translate-x-[120%] transition-transform duration-500 ease-out flex flex-col">
+      <div class="glass-panel rounded-3xl flex flex-col max-h-full overflow-hidden pointer-events-auto border border-slate-700/80">
+        <!-- Panel Header -->
+        <div class="p-4 sm:p-5 border-b border-slate-700/70 flex items-center justify-between gap-3 bg-slate-900/60">
+          <div class="flex items-center gap-3">
+            <div id="hud-zone-icon" class="w-11 h-11 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 text-xl shrink-0">
+              <i class="fa-solid fa-user-astronaut"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="hud-zone-badge" class="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30">ZONE 01</span>
+                <span class="text-xs text-emerald-400 font-mono flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Checkpoint Active</span>
+              </div>
+              <h2 id="hud-zone-title" class="text-lg sm:text-xl font-display font-bold text-white mt-0.5">Spawn Plaza — About & Objective</h2>
+            </div>
+          </div>
+          <button onclick="closeZonePanel()" title="Đóng bảng thông tin (Esc)" class="w-8 h-8 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer shrink-0">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Panel Dynamic Content (Scrollable) -->
+        <div id="hud-zone-body" class="p-4 sm:p-5 overflow-y-auto custom-scroll space-y-4 selectable-text text-sm text-slate-200">
+          <!-- Populated dynamically via JS when entering a zone -->
+        </div>
+
+        <!-- Panel Footer Navigation -->
+        <div class="px-4 py-3 border-t border-slate-800 bg-slate-950/70 flex items-center justify-between gap-2 text-xs">
+          <button onclick="cycleZone(-1)" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-arrow-left"></i> Trạm trước</button>
+          <span class="text-slate-400 font-mono text-[11px]">Lái xe ra khỏi vòng sáng hoặc bấm <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700">ESC</kbd> để đóng</span>
+          <button onclick="cycleZone(1)" class="px-3 py-1.5 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/30 transition flex items-center gap-1.5 cursor-pointer">Trạm kế tiếp <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- BOTTOM HUD: MINIMAP (Bottom-Left), TELEMETRY & KEYBOARD HINTS, MOBILE TOUCH CONTROLS -->
+    <div class="fixed bottom-3 left-3 right-3 z-20 pointer-events-none flex items-end justify-between gap-3">
+      <!-- Bottom Left: Interactive Radar Minimap & Telemetry -->
+      <div class="flex items-end gap-3 pointer-events-auto">
+        <!-- Radar Minimap -->
+        <div class="glass-pill p-2.5 rounded-2xl border border-slate-700/80 flex flex-col items-center shadow-xl">
+          <div class="flex items-center justify-between w-full mb-1 px-1">
+            <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400"><i class="fa-solid fa-compass text-orange-400 mr-1"></i>Radar Map</span>
+            <span class="text-[9px] font-mono text-cyan-400">Click to Drive</span>
+          </div>
+          <canvas id="minimap-canvas" width="136" height="136" class="rounded-xl bg-slate-950/90 border border-slate-800 cursor-pointer" title="Click vào bất kỳ vị trí nào trên bản đồ để xe tự lái tới đó!"></canvas>
+        </div>
+
+        <!-- Speedometer & Controls Hint (Hidden on very small screens) -->
+        <div class="hidden md:flex glass-pill p-3 rounded-2xl border border-slate-700/80 items-center gap-4">
+          <!-- Digital Speedometer -->
+          <div class="pr-4 border-r border-slate-700/80 text-center min-w-[78px]">
+            <div id="speed-value" class="text-2xl font-mono font-extrabold text-orange-400 leading-none">00</div>
+            <div class="text-[10px] font-mono uppercase text-slate-400 mt-1">KM/H</div>
+            <div id="gear-badge" class="mt-1 inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-emerald-400 border border-slate-700">DRIVE</div>
+          </div>
+
+          <!-- Keyboard Visual Keycaps -->
+          <div class="flex items-center gap-3 text-xs">
+            <div class="flex flex-col items-center gap-1">
+              <div class="keycap" id="key-w">W</div>
+              <div class="flex gap-1">
+                <div class="keycap" id="key-a">A</div>
+                <div class="keycap" id="key-s">S</div>
+                <div class="keycap" id="key-d">D</div>
+              </div>
+            </div>
+            <div class="space-y-1 text-[11px] text-slate-300 font-mono">
+              <div><span class="keycap !h-5 !text-[10px] mr-1" id="key-shift">SHIFT</span> Turbo Boost</div>
+              <div><span class="keycap !h-5 !text-[10px] mr-1" id="key-space">SPACE</span> Brake / Drift</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Right: Touch Controls for Mobile / Mouse Click Driving -->
+      <div class="flex items-end gap-2 pointer-events-auto md:hidden">
+        <!-- Left / Right Steering -->
+        <div class="glass-pill p-1.5 rounded-2xl flex gap-1.5">
+          <button id="touch-left" class="touch-btn w-12 h-12 rounded-xl bg-slate-800/90 border border-slate-600 text-white flex items-center justify-center text-lg">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button id="touch-right" class="touch-btn w-12 h-12 rounded-xl bg-slate-800/90 border border-slate-600 text-white flex items-center justify-center text-lg">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+        </div>
+        <!-- Gas / Brake / Boost -->
+        <div class="glass-pill p-1.5 rounded-2xl flex gap-1.5">
+          <button id="touch-down" class="touch-btn w-12 h-12 rounded-xl bg-rose-500/30 border border-rose-500/50 text-rose-200 flex flex-col items-center justify-center text-xs font-mono">
+            <i class="fa-solid fa-angles-down"></i>
+            <span class="text-[9px]">REV</span>
+          </button>
+          <button id="touch-up" class="touch-btn w-14 h-12 rounded-xl bg-orange-500/80 border border-orange-400 text-slate-950 font-bold flex flex-col items-center justify-center text-xs font-mono">
+            <i class="fa-solid fa-gas-pump"></i>
+            <span class="text-[9px]">GAS</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECRUITER FAST-READ STANDARD CV MODAL -->
+    <div id="fast-cv-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md">
+      <div class="glass-panel max-w-5xl w-full max-h-[92vh] rounded-3xl border border-slate-700 flex flex-col overflow-hidden shadow-2xl">
+        <!-- Modal Top Bar -->
+        <div class="px-5 py-4 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-semibold"> <i class="fa-solid fa-bolt mr-1"></i>RECRUITER FAST-READ MODE </span>
+            <h2 class="font-display font-bold text-lg text-white">Tran Xuan Thai — Full Curriculum Vitae</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copyToClipboard('bevatysun12@gmail.com')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs text-slate-200 flex items-center gap-1.5 transition cursor-pointer"><i class="fa-regular fa-copy text-orange-400"></i> Copy Email</button>
+            <a href="https://github.com/abaddon8386" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs text-slate-200 flex items-center gap-1.5 transition"> <i class="fa-brands fa-github text-white"></i> GitHub Profile </a>
+            <button onclick="toggleFastCVModal(false)" class="px-3.5 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"><i class="fa-solid fa-gamepad"></i> Back to 3D World</button>
+          </div>
+        </div>
+
+        <!-- Modal Body (Complete Structured CV) -->
+        <div class="p-5 sm:p-8 overflow-y-auto custom-scroll space-y-8 selectable-text bg-slate-950/50">
+          <!-- CV Header -->
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-6 border-b border-slate-800">
+            <div>
+              <h1 class="text-3xl font-display font-extrabold text-white tracking-tight">TRAN XUAN THAI</h1>
+              <p class="text-orange-400 font-display font-semibold text-lg mt-0.5">Business Analyst Internship &bull; Aspiring Bridge Software Engineer (BrSE)</p>
+              <div class="flex flex-wrap items-center gap-4 text-xs text-slate-300 mt-2 font-mono">
+                <span><i class="fa-solid fa-location-dot text-orange-400 mr-1.5"></i>Binh Hoa Ward, Ho Chi Minh City</span>
+                <button onclick="copyToClipboard('bevatysun12@gmail.com')" class="hover:text-orange-400 transition cursor-pointer"><i class="fa-solid fa-envelope text-cyan-400 mr-1.5"></i>bevatysun12@gmail.com</button>
+                <a href="https://github.com/abaddon8386" target="_blank" rel="noopener noreferrer" class="hover:text-orange-400 transition"> <i class="fa-brands fa-github text-purple-400 mr-1.5"></i>github.com/abaddon8386 </a>
+              </div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 text-xs space-y-1 shrink-0">
+              <div class="font-bold text-white"><i class="fa-solid fa-building-columns text-orange-400 mr-1.5"></i>FPT University — HCMC Campus</div>
+              <div class="text-slate-300">Major: <span class="text-white font-medium">Software Engineering</span> (2024 – 2028)</div>
+              <div class="flex items-center gap-3 font-mono text-emerald-400 pt-0.5">
+                <span>Semester: 5/9</span>
+                <span>&bull;</span>
+                <span>GPA: 8.0 / 10</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Objective -->
+          <div>
+            <h3 class="text-xs font-mono uppercase tracking-widest text-orange-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-bullseye"></i> Career Objective</h3>
+            <p class="text-slate-200 text-sm leading-relaxed bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">Software Engineering student seeking a <strong>Business Analyst (BA) internship</strong>, aiming to apply technical knowledge and requirements analysis skills to clarify business needs and support effective software delivery. Aspiring to become a <strong>Bridge Software Engineer (BrSE)</strong> who strengthens collaboration between Vietnamese and Japanese teams.</p>
+          </div>
+
+          <!-- Project Experience (4 Projects) -->
+          <div>
+            <h3 class="text-xs font-mono uppercase tracking-widest text-cyan-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-code-branch"></i> Project Experience</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Project 1 -->
+              <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-start justify-between gap-2">
+                    <h4 class="font-display font-bold text-white text-base">LEGACYVAULT — Digital Inheritance & Asset Handover</h4>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 shrink-0">Sep 2026 – Present</span>
+                  </div>
+                  <div class="text-xs text-cyan-400 font-medium mt-0.5">Role: Full Stack Developer (Project Leader) &bull; Academic Project</div>
+                  <p class="text-xs text-slate-300 mt-2">A web platform for managing digital assets and inheritance handover across multiple user roles.</p>
+                  <ul class="text-xs text-slate-300 mt-2 space-y-1 list-disc list-inside">
+                    <li>Documented API contracts and translated business workflows into guided interfaces and validation rules.</li>
+                    <li>Integrated frontend screens with backend APIs; contributed to workflow testing and integration reviews.</li>
+                  </ul>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">React</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Java</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Spring Boot</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">SQL Server</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Jira</span>
+                  </div>
+                  <a href="https://github.com/Abaddon8386/Legacy_Vault" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-orange-400 hover:underline shrink-0"> <i class="fa-brands fa-github mr-1"></i>Repo &rarr; </a>
+                </div>
+              </div>
+
+              <!-- Project 2 -->
+              <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-start justify-between gap-2">
+                    <h4 class="font-display font-bold text-white text-base">SMART CAR WASH — Requirements & System Specification</h4>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 shrink-0">May – Jul 2026</span>
+                  </div>
+                  <div class="text-xs text-cyan-400 font-medium mt-0.5">Role: Requirements Analyst / Team Leader &bull; Academic Project</div>
+                  <p class="text-xs text-slate-300 mt-2">A requirements engineering project covering car wash booking, payment, and loyalty programs.</p>
+                  <ul class="text-xs text-slate-300 mt-2 space-y-1 list-disc list-inside">
+                    <li>Authored user requirements documentation including actors, use cases, business rules, and normal/exception flows.</li>
+                    <li>Reviewed consistency between project scope and system requirements (SRS).</li>
+                  </ul>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">SRS Documentation</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Use Case Modeling</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Draw.io</span>
+                  </div>
+                  <span class="text-[11px] font-mono text-emerald-400"><i class="fa-solid fa-check-double mr-1"></i>BA Lead</span>
+                </div>
+              </div>
+
+              <!-- Project 3 -->
+              <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-start justify-between gap-2">
+                    <h4 class="font-display font-bold text-white text-base">AI STOCK PREDICTION — Forecasting Dashboard</h4>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 shrink-0">Aug 2026</span>
+                  </div>
+                  <div class="text-xs text-cyan-400 font-medium mt-0.5">Role: Developer &bull; Personal Project</div>
+                  <p class="text-xs text-slate-300 mt-2">A prototype for forecasting Vietnamese stock prices and tracking prediction history.</p>
+                  <ul class="text-xs text-slate-300 mt-2 space-y-1 list-disc list-inside">
+                    <li>Implemented data preprocessing and LSTM neural network forecasting workflows.</li>
+                    <li>Built an interactive dashboard monitoring 15 stock symbols and storing forecast history in Google Sheets.</li>
+                  </ul>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Python</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">TensorFlow/Keras</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Streamlit</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">FastAPI</span>
+                  </div>
+                  <a href="https://github.com/Abaddon8386/LSTM" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-orange-400 hover:underline shrink-0"> <i class="fa-brands fa-github mr-1"></i>Repo &rarr; </a>
+                </div>
+              </div>
+
+              <!-- Project 4 -->
+              <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-start justify-between gap-2">
+                    <h4 class="font-display font-bold text-white text-base">MATH UTILITY LIBRARY — Java Unit Testing</h4>
+                    <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 shrink-0">Oct 2026</span>
+                  </div>
+                  <div class="text-xs text-cyan-400 font-medium mt-0.5">Role: Developer &bull; Academic Project</div>
+                  <p class="text-xs text-slate-300 mt-2">A Java utility library for practicing Test-Driven Development (TDD) and Data-Driven Testing (DDT).</p>
+                  <ul class="text-xs text-slate-300 mt-2 space-y-1 list-disc list-inside">
+                    <li>Developed utility functions and wrote parameterized JUnit test suites across multiple datasets.</li>
+                    <li>Verified expected outputs, edge cases, and exception handling.</li>
+                  </ul>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                  <div class="flex flex-wrap gap-1">
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Java</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">Maven</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">JUnit</span>
+                    <span class="px-2 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-slate-300">TDD / DDT</span>
+                  </div>
+                  <a href="https://github.com/Abaddon8386/math-util" target="_blank" rel="noopener noreferrer" class="text-xs font-mono text-orange-400 hover:underline shrink-0"> <i class="fa-brands fa-github mr-1"></i>Repo &rarr; </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4-Pillar Skills Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Business Analysis Skills -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-sitemap"></i> Business Analysis Skills</h4>
+              <div class="space-y-2 text-xs">
+                <div><strong class="text-white">Requirements Analysis:</strong> <span class="text-slate-300">User requirements, SRS documentation, scope consistency review.</span></div>
+                <div><strong class="text-white">Process & System Modeling:</strong> <span class="text-slate-300">Actors, use cases, business rules, normal & exception flows.</span></div>
+                <div><strong class="text-white">Technical Documentation:</strong> <span class="text-slate-300">API contracts, validation rules, frontend-backend integration.</span></div>
+                <div><strong class="text-white">Agile Planning & Tracking:</strong> <span class="text-slate-300">Agile/Scrum practices, sprint planning, task breakdown in Jira.</span></div>
+                <div><strong class="text-white">Wireframing & Prototyping:</strong> <span class="text-slate-300">Figma & Google Stitch (wireframes, UI mockups, interactive prototypes).</span></div>
+              </div>
+            </div>
+
+            <!-- Technical & Language Skills -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-xs font-mono uppercase tracking-wider text-orange-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-laptop-code"></i> Technical & Language Skills</h4>
+              <div class="space-y-2 text-xs">
+                <div><strong class="text-white">Languages:</strong> <span class="text-slate-300">Java, JavaScript, Python, SQL</span></div>
+                <div><strong class="text-white">Frameworks & Libraries:</strong> <span class="text-slate-300">React, Spring Boot, FastAPI, Streamlit</span></div>
+                <div><strong class="text-white">Databases & Tools:</strong> <span class="text-slate-300">MS SQL Server, Git, GitHub, Jira, Maven, Draw.io, Google Sheets</span></div>
+                <div><strong class="text-white">Testing:</strong> <span class="text-slate-300">JUnit, TDD, DDT, workflow & integration testing</span></div>
+                <div><strong class="text-white">Foreign Languages:</strong> <span class="text-emerald-300">English (Good communication) &bull; Japanese (Elementary; studying toward JLPT N4)</span></div>
+              </div>
+            </div>
+
+            <!-- AI Skills -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-xs font-mono uppercase tracking-wider text-purple-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> AI-Assisted Engineering Skills</h4>
+              <div class="space-y-2 text-xs">
+                <div><strong class="text-white">AI-Assisted Project Work:</strong> <span class="text-slate-300">Using AI agents to support requirements analysis, documentation, coding, and debugging.</span></div>
+                <div><strong class="text-white">Agent Instructions & Context:</strong> <span class="text-slate-300">Preparing structured project context, task instructions, and constraints.</span></div>
+                <div><strong class="text-white">Specialized Agent Skills:</strong> <span class="text-purple-300">Graphify (codebase knowledge graphs), REA (application behavior analysis), Taste Skill (UI design guidance).</span></div>
+                <div><strong class="text-white">Output Review & Validation:</strong> <span class="text-slate-300">Verifying AI-generated specs and code against business rules and tests.</span></div>
+              </div>
+            </div>
+
+            <!-- Soft Skills & Certifications -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+              <h4 class="text-xs font-mono uppercase tracking-wider text-amber-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-award"></i> Leadership & Coursera Specializations (2026)</h4>
+              <div class="space-y-2 text-xs">
+                <div>
+                  <strong class="text-white">Team Leadership:</strong> <span class="text-slate-300">Led academic project teams in <span class="text-amber-300 font-mono">CSD201, SWP391, SWT301, IOT102, SWR302, DBI202</span>.</span>
+                </div>
+                <div class="pt-1 border-t border-slate-800/80 space-y-1">
+                  <div class="text-slate-200"><i class="fa-solid fa-certificate text-amber-400 mr-1.5"></i><strong>Software Engineering Specialization</strong> — HKUST</div>
+                  <div class="text-slate-200"><i class="fa-solid fa-certificate text-amber-400 mr-1.5"></i><strong>OOP in Java Specialization</strong> — Duke University & UC San Diego</div>
+                  <div class="text-slate-200"><i class="fa-solid fa-certificate text-amber-400 mr-1.5"></i><strong>Data Structures & Algorithms Specialization</strong> — UC San Diego</div>
+                  <div class="text-slate-200"><i class="fa-solid fa-certificate text-amber-400 mr-1.5"></i><strong>Generative AI Fundamentals Specialization</strong> — IBM</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION BOX (No alert() used!) -->
+    <div id="toast-box" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-300 translate-y-2">
+      <div class="glass-pill px-4 py-2.5 rounded-2xl border border-emerald-500/50 text-emerald-300 text-xs font-mono flex items-center gap-2 shadow-xl">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-message">Copied to clipboard!</span>
+      </div>
+    </div>
+
+    <!-- MAIN APPLICATION & THREE.JS LOGIC -->
+    <script>
+      /* ============================================================================
+       * 1. PORTFOLIO DATA STORE (FROM TRAN XUAN THAI'S CV)
+       * ============================================================================ */
+      const ZONES_DATA = [
+        {
+          id: "about",
+          code: "ZONE 01 • SPAWN PLAZA",
+          name: "About & BrSE/BA Objective",
+          shortName: "1. Spawn",
+          color: "#f97316",
+          icon: "fa-user-astronaut",
+          x: 0,
+          z: 4,
+          radius: 8.5,
+          renderHTML: () => `
+                    <div class="space-y-4">
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-orange-500/15 to-amber-500/5 border border-orange-500/30">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-mono uppercase text-orange-300">Candidate Profile</span>
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Available for BA Internship</span>
+                            </div>
+                            <h3 class="text-xl font-display font-extrabold text-white mt-1">TRAN XUAN THAI <span class="text-orange-400 font-mono text-sm">(Abaddon)</span></h3>
+                            <p class="text-xs text-slate-300 mt-0.5">Business Analyst Intern &bull; Aspiring Bridge Software Engineer (BrSE)</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-700/60 text-xs font-mono">
+                                <div class="text-slate-300"><i class="fa-solid fa-location-dot text-orange-400 mr-1.5"></i>Binh Hoa Ward, HCMC</div>
+                                <button onclick="copyToClipboard('bevatysun12@gmail.com')" class="text-left text-cyan-300 hover:underline cursor-pointer">
+                                    <i class="fa-regular fa-envelope mr-1.5"></i>bevatysun12@gmail.com
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">Career Objective</h4>
+                            <p class="text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-900/70 p-3.5 rounded-2xl border border-slate-800">
+                                Software Engineering student seeking a <strong>Business Analyst (BA) internship</strong>, aiming to apply technical knowledge and requirements analysis skills to clarify business needs and support effective software delivery. Aspiring to become a <strong>Bridge Software Engineer (BrSE)</strong> who strengthens collaboration between Vietnamese and Japanese teams.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                                <div class="text-lg font-display font-bold text-orange-400">8.0/10</div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">FPTU GPA (Sem 5/9)</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                                <div class="text-lg font-display font-bold text-cyan-400">6 Teams</div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Academic Team Lead</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                                <div class="text-lg font-display font-bold text-emerald-400">EN + JP</div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">BrSE Track (JLPT N4)</div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-2xl bg-slate-900/50 border border-slate-800 flex items-center justify-between text-xs">
+                            <span class="text-slate-300"><i class="fa-solid fa-cubes-stacked text-orange-400 mr-1.5"></i><strong>Fun Fact:</strong> Thử lái xe tông vào bức tường gạch 3D <strong>"THAI TX"</strong> phía bắc quảng trường!</span>
+                            <button onclick="resetCarAndBricks()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-orange-300 font-mono shrink-0 cursor-pointer">Xếp gạch</button>
+                        </div>
+                    </div>
+                `,
+        },
+        {
+          id: "education",
+          code: "ZONE 02 • FPT UNIVERSITY CAMPUS",
+          name: "Education & Certifications",
+          shortName: "2. Education",
+          color: "#f59e0b",
+          icon: "fa-graduation-cap",
+          x: -36,
+          z: -24,
+          radius: 9.5,
+          renderHTML: () => `
+                    <div class="space-y-4">
+                        <!-- University Card -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 to-orange-500/5 border border-amber-500/30">
+                            <div class="flex items-center justify-between text-xs font-mono text-amber-300">
+                                <span><i class="fa-solid fa-building-columns mr-1"></i>HIGHER EDUCATION</span>
+                                <span>2024 – 2028</span>
+                            </div>
+                            <h3 class="text-lg font-display font-bold text-white mt-1">FPT University — Ho Chi Minh City Campus</h3>
+                            <p class="text-xs text-slate-300 mt-0.5">Major: <strong class="text-white">Software Engineering</strong></p>
+                            <div class="flex items-center gap-3 mt-3 pt-3 border-t border-slate-700/60 text-xs font-mono">
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">Semester: 5 / 9</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">GPA: 8.0 / 10</span>
+                            </div>
+                        </div>
+
+                        <!-- Coursera Specializations -->
+                        <div>
+                            <h4 class="text-xs font-mono uppercase tracking-wider text-amber-400 mb-2.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-certificate"></i> Verified Specializations (Coursera, 2026)
+                            </h4>
+                            <div class="space-y-2.5">
+                                <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="font-semibold text-white text-xs sm:text-sm">Software Engineering Specialization</div>
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">2026</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-1">The Hong Kong University of Science and Technology (HKUST)</div>
+                                </div>
+
+                                <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="font-semibold text-white text-xs sm:text-sm">Object Oriented Programming in Java Specialization</div>
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">2026</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-1">Duke University &amp; University of California San Diego</div>
+                                </div>
+
+                                <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="font-semibold text-white text-xs sm:text-sm">Data Structures and Algorithms Specialization</div>
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">2026</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-1">University of California San Diego (UCSD)</div>
+                                </div>
+
+                                <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="font-semibold text-white text-xs sm:text-sm">Generative AI Fundamentals Specialization</div>
+                                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 shrink-0">2026</span>
+                                    </div>
+                                    <div class="text-xs text-slate-400 mt-1">IBM</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+        },
+        {
+          id: "projects",
+          code: "ZONE 03 • PROJECT MONUMENT HUB",
+          name: "4 Featured Software & BA Projects",
+          shortName: "3. Projects",
+          color: "#06b6d4",
+          icon: "fa-cubes",
+          x: 36,
+          z: -24,
+          radius: 10.5,
+          renderHTML: () => `
+                    <div class="space-y-3.5">
+                        <!-- Interactive Project Selector Tabs -->
+                        <div class="grid grid-cols-2 gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
+                            <button onclick="switchProjectTab(0)" id="proj-tab-0" class="proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-left truncate cursor-pointer">
+                                1. LegacyVault
+                            </button>
+                            <button onclick="switchProjectTab(1)" id="proj-tab-1" class="proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white text-left truncate cursor-pointer">
+                                2. Smart Car Wash
+                            </button>
+                            <button onclick="switchProjectTab(2)" id="proj-tab-2" class="proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white text-left truncate cursor-pointer">
+                                3. AI Stock LSTM
+                            </button>
+                            <button onclick="switchProjectTab(3)" id="proj-tab-3" class="proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white text-left truncate cursor-pointer">
+                                4. Math Util TDD
+                            </button>
+                        </div>
+
+                        <!-- Dynamic Project Content Container -->
+                        <div id="project-tab-content">
+                            ${getProjectCardHTML(0)}
+                        </div>
+                    </div>
+                `,
+        },
+        {
+          id: "skills",
+          code: "ZONE 04 • BA & TECH ARCHITECTURE LAB",
+          name: "Business Analysis & Technical Skills",
+          shortName: "4. BA & Tech",
+          color: "#10b981",
+          icon: "fa-diagram-project",
+          x: -38,
+          z: 24,
+          radius: 9.5,
+          renderHTML: () => `
+                    <div class="space-y-4">
+                        <!-- BA Skills -->
+                        <div class="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5">
+                            <div class="text-xs font-mono uppercase tracking-wider text-emerald-300 font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-clipboard-check"></i> Business Analysis Core Competencies
+                            </div>
+                            <div class="space-y-2 text-xs">
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <span class="text-emerald-400 font-semibold">Requirements Analysis:</span>
+                                    <span class="text-slate-300"> User requirements elicitation, SRS documentation, scope consistency review.</span>
+                                </div>
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <span class="text-emerald-400 font-semibold">Process &amp; System Modeling:</span>
+                                    <span class="text-slate-300"> Actors, use cases, business rules, normal and exception flows (Draw.io).</span>
+                                </div>
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <span class="text-emerald-400 font-semibold">Technical Documentation:</span>
+                                    <span class="text-slate-300"> API contracts, validation rules, frontend-backend integration specs.</span>
+                                </div>
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <span class="text-emerald-400 font-semibold">Agile &amp; Prototyping:</span>
+                                    <span class="text-slate-300"> Scrum sprint planning &amp; task breakdown in Jira; wireframes &amp; UI mockups via Figma &amp; Google Stitch.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Technical Stack -->
+                        <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+                            <div class="text-xs font-mono uppercase tracking-wider text-cyan-400 font-semibold">
+                                <i class="fa-solid fa-code mr-1"></i> Technical Stack &amp; Languages
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-orange-300">Java</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-amber-300">JavaScript</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-cyan-300">Python</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-emerald-300">SQL Server</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-sky-300">React</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-lime-300">Spring Boot</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-teal-300">FastAPI</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-rose-300">Streamlit</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-purple-300">JUnit (TDD/DDT)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono text-slate-300">Git / GitHub / Jira / Maven</span>
+                            </div>
+                        </div>
+
+                        <!-- BrSE Languages -->
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                                <div class="text-xs font-mono text-slate-400">ENGLISH</div>
+                                <div class="text-sm font-bold text-white mt-0.5">Good Communication</div>
+                                <div class="text-[11px] text-emerald-400 mt-0.5">Technical &amp; SRS Docs</div>
+                            </div>
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+                                <div class="text-xs font-mono text-slate-400">JAPANESE (日本語)</div>
+                                <div class="text-sm font-bold text-white mt-0.5">Elementary &rarr; JLPT N4</div>
+                                <div class="text-[11px] text-orange-400 mt-0.5">BrSE Career Track</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+        },
+        {
+          id: "ai_leadership",
+          code: "ZONE 05 • AI & LEADERSHIP NEXUS",
+          name: "AI Agent Workflows & Team Leadership",
+          shortName: "5. AI & Lead",
+          color: "#a855f7",
+          icon: "fa-microchip",
+          x: 38,
+          z: 24,
+          radius: 9.5,
+          renderHTML: () => `
+                    <div class="space-y-4">
+                        <!-- AI Skills -->
+                        <div class="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/30 space-y-2.5">
+                            <div class="text-xs font-mono uppercase tracking-wider text-purple-300 font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-robot"></i> AI-Assisted BA &amp; Engineering Workflows
+                            </div>
+                            <div class="space-y-2 text-xs">
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <strong class="text-purple-300">Agent Skills &amp; Specialized Tools:</strong>
+                                    <ul class="mt-1 space-y-1 text-slate-300 list-disc list-inside">
+                                        <li><code class="text-cyan-300 font-mono">Graphify</code> — Codebase knowledge graphs</li>
+                                        <li><code class="text-emerald-300 font-mono">REA</code> — Application behavior analysis</li>
+                                        <li><code class="text-orange-300 font-mono">Taste Skill</code> — UI design guidance</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                                    <strong class="text-purple-300">Context Engineering &amp; Output Validation:</strong>
+                                    <span class="text-slate-300"> Preparing project context, task instructions, and constraints to guide AI agents; rigorously validating generated specs and code against business rules &amp; JUnit tests.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Soft Skills & Leadership -->
+                        <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+                            <div class="text-xs font-mono uppercase tracking-wider text-amber-400 font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-users-gear"></i> Leadership &amp; Analytical Soft Skills
+                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Proven academic project leader across <strong>6 university engineering courses</strong>:
+                            </p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">CSD201 (Data Structures)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">SWP391 (SW Dev Project)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">SWT301 (SW Testing)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">SWR302 (SW Requirements)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">DBI202 (Databases)</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-xs">IOT102 (Internet of Things)</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 pt-1 text-xs text-slate-300">
+                                <div><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Team Coordination</div>
+                                <div><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Analytical Thinking</div>
+                                <div><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Stakeholder Comm.</div>
+                                <div><i class="fa-solid fa-check text-emerald-400 mr-1"></i>Attention to Detail</div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+        },
+        {
+          id: "cafe",
+          code: "ZONE 06 • CAFE & TECH LOUNGE",
+          name: "Interests & Direct Contact",
+          shortName: "6. Cafe & Contact",
+          color: "#f43f5e",
+          icon: "fa-mug-hot",
+          x: 0,
+          z: 38,
+          radius: 9.0,
+          renderHTML: () => `
+                    <div class="space-y-4">
+                        <!-- Interests Cards -->
+                        <div class="grid grid-cols-1 gap-2.5">
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i class="fa-solid fa-mug-saucer"></i>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="font-bold text-white">Coffee &amp; Deep Focus</div>
+                                    <p class="text-slate-300 mt-0.5">Finding good coffee and a little motivation from the focused people at the next table.</p>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="font-bold text-white">After-Class Coding</div>
+                                    <p class="text-slate-300 mt-0.5">Turning after-class ideas into practical software prototypes at libraries and cafes.</p>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-start gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
+                                    <i class="fa-solid fa-microchip"></i>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="font-bold text-white">Hardware &amp; Tech Exploration</div>
+                                    <p class="text-slate-300 mt-0.5">Exploring chips, smartphone capabilities, and custom PC builds that match my interests.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact CTA Box -->
+                        <div class="p-4 rounded-2xl bg-gradient-to-br from-rose-500/15 to-orange-500/10 border border-rose-500/30 space-y-3">
+                            <div class="text-xs font-mono uppercase tracking-wider text-rose-300 font-semibold">
+                                <i class="fa-solid fa-paper-plane mr-1"></i> Let's Connect for BA / BrSE Opportunities
+                            </div>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <button onclick="copyToClipboard('bevatysun12@gmail.com')" class="flex-1 py-2.5 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-xs font-mono text-white flex items-center justify-center gap-2 transition cursor-pointer">
+                                    <i class="fa-regular fa-copy text-orange-400"></i> bevatysun12@gmail.com
+                                </button>
+                                <a href="https://github.com/abaddon8386" target="_blank" rel="noopener noreferrer" class="py-2.5 px-4 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-700 text-xs font-mono text-white flex items-center justify-center gap-2 transition">
+                                    <i class="fa-brands fa-github text-cyan-400"></i> abaddon8386
+                                </a>
+                            </div>
+                            <button onclick="toggleFastCVModal(true)" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 font-display font-bold text-xs shadow-md hover:opacity-95 transition cursor-pointer">
+                                <i class="fa-solid fa-file-lines mr-1"></i> Mở Chế Độ Đọc CV Đầy Đủ (Standard CV Mode)
+                            </button>
+                        </div>
+                    </div>
+                `,
+        },
+      ];
+
+      const PROJECTS_DETAIL = [
+        {
+          title: "LEGACYVAULT — Digital Inheritance & Asset Handover Platform",
+          period: "Sep 2026 – Present",
+          type: "Academic Project",
+          role: "Full Stack Developer (Project Leader)",
+          desc: "A comprehensive web platform for managing digital assets and inheritance handover across multiple user roles.",
+          bullets: ["Documented API contracts and translated complex business workflows into guided user interfaces and validation rules.", "Integrated React frontend screens with Java Spring Boot backend APIs.", "Led workflow testing, scope validation, and full-stack integration reviews."],
+          tech: ["React", "Java", "Spring Boot", "SQL Server", "Git", "Jira"],
+          github: "https://github.com/Abaddon8386/Legacy_Vault",
+        },
+        {
+          title: "SMART CAR WASH — Requirements Analysis & System Specification",
+          period: "May 2026 – July 2026",
+          type: "Academic Project",
+          role: "Requirements Analyst / Team Leader",
+          desc: "A requirements engineering project covering automated car wash booking, multi-method payment, and customer loyalty programs.",
+          bullets: ["Authored comprehensive user requirements documentation (SRS), defining actors, use cases, and business rules.", "Modeled normal and exception flows using Draw.io and Use Case diagrams.", "Reviewed end-to-end consistency between project scope and system specifications."],
+          tech: ["SRS Documentation", "Use Case Modeling", "Draw.io", "Business Rules", "Scope Review"],
+          github: null,
+        },
+        {
+          title: "AI STOCK PREDICTION — Stock Forecasting Dashboard",
+          period: "August 2026",
+          type: "Personal Project",
+          role: "Developer",
+          desc: "An AI prototype for forecasting Vietnamese stock prices and tracking historical model accuracy.",
+          bullets: ["Implemented financial time-series data preprocessing and LSTM deep learning forecasting workflows.", "Built an interactive Streamlit & FastAPI dashboard monitoring 15 Vietnamese stock symbols.", "Automated prediction history logging directly into Google Sheets for performance review."],
+          tech: ["Python", "TensorFlow/Keras", "scikit-learn", "Streamlit", "FastAPI", "Google Sheets"],
+          github: "https://github.com/Abaddon8386/LSTM",
+        },
+        {
+          title: "MATH UTILITY LIBRARY — Java Unit Testing Project",
+          period: "October 2026",
+          type: "Academic Project",
+          role: "Developer",
+          desc: "A Java utility library engineered to practice rigorous Test-Driven Development (TDD) and Data-Driven Testing (DDT).",
+          bullets: ["Developed core mathematical utility functions with strict boundary conditions.", "Wrote parameterized JUnit test suites across diverse input datasets to verify expected results and exception handling."],
+          tech: ["Java", "Maven", "JUnit", "TDD / DDT", "Git"],
+          github: "https://github.com/Abaddon8386/math-util",
+        },
+      ];
+
+      function getProjectCardHTML(index) {
+        const p = PROJECTS_DETAIL[index];
+        return `
+                <div class="p-4 rounded-2xl bg-slate-900/85 border border-cyan-500/30 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">${p.type}</span>
+                        <span class="text-xs font-mono text-orange-300">${p.period}</span>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-display font-bold text-white leading-snug">${p.title}</h3>
+                        <div class="text-xs text-emerald-400 font-mono mt-1"><i class="fa-solid fa-user-check mr-1"></i>Role: ${p.role}</div>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">${p.desc}</p>
+                    <div>
+                        <div class="text-[11px] font-mono uppercase text-slate-400 mb-1">Key Contributions:</div>
+                        <ul class="space-y-1.5 text-xs text-slate-200 list-disc list-inside">
+                            ${p.bullets.map((b) => `<li>${b}</li>`).join("")}
+                        </ul>
+                    </div>
+                    <div class="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex flex-wrap gap-1">
+                            ${p.tech.map((t) => `<span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-cyan-200">${t}</span>`).join("")}
+                        </div>
+                        ${
+                          p.github
+                            ? `
+                            <a href="${p.github}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 font-mono font-bold text-xs transition flex items-center gap-1.5 shrink-0">
+                                <i class="fa-brands fa-github"></i> View GitHub
+                            </a>
+                        `
+                            : `
+                            <span class="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono text-[11px]">
+                                <i class="fa-solid fa-file-shield mr-1"></i>SRS &amp; Use Case Spec
+                            </span>
+                        `
+                        }
+                    </div>
+                </div>
+            `;
+      }
+
+      window.switchProjectTab = function (idx) {
+        const container = document.getElementById("project-tab-content");
+        if (container) container.innerHTML = getProjectCardHTML(idx);
+        for (let i = 0; i < 4; i++) {
+          const btn = document.getElementById("proj-tab-" + i);
+          if (!btn) continue;
+          if (i === idx) {
+            btn.className = "proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-left truncate cursor-pointer";
+          } else {
+            btn.className = "proj-tab-btn px-2.5 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white text-left truncate cursor-pointer";
+          }
+        }
+      };
+
+      /* ============================================================================
+       * 2. CLIPBOARD & UI MODAL HELPERS (NO ALERT() USED)
+       * ============================================================================ */
+      window.showToast = function (msg) {
+        const box = document.getElementById("toast-box");
+        const text = document.getElementById("toast-message");
+        if (!box || !text) return;
+        text.textContent = msg;
+        box.classList.remove("opacity-0", "translate-y-2");
+        box.classList.add("opacity-100", "translate-y-0");
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => {
+          box.classList.add("opacity-0", "translate-y-2");
+          box.classList.remove("opacity-100", "translate-y-0");
+        }, 2600);
+      };
+
+      window.copyToClipboard = function (str) {
+        try {
+          const el = document.createElement("textarea");
+          el.value = str;
+          el.setAttribute("readonly", "");
+          el.style.position = "absolute";
+          el.style.left = "-9999px";
+          document.body.appendChild(el);
+          el.select();
+          document.execCommand("copy");
+          document.body.removeChild(el);
+          showToast("Đã sao chép: " + str);
+        } catch (err) {
+          showToast("Email: " + str);
+        }
+      };
+
+      window.toggleFastCVModal = function (show) {
+        const modal = document.getElementById("fast-cv-modal");
+        if (!modal) return;
+        if (show) {
+          modal.classList.remove("hidden");
+          modal.classList.add("flex");
+        } else {
+          modal.classList.add("hidden");
+          modal.classList.remove("flex");
+        }
+      };
+
+      /* ============================================================================
+       * 3. THREE.JS 3D WORLD, CAR PHYSICS & KNOCKABLE BRICKS
+       * ============================================================================ */
+      let scene, camera, renderer;
+      let carGroup, carChassis, frontWheelL, frontWheelR, rearWheelL, rearWheelR, headLightL, headLightR;
+      let zoneRings = [];
+      let animatedObjects = [];
+      let knockableBricks = [];
+      let particles = [];
+
+      // Car Physics State
+      const carState = {
+        x: 0,
+        z: 10,
+        angle: Math.PI, // Facing North (-Z) initially
+        speed: 0,
+        maxSpeed: 0.56,
+        boostMaxSpeed: 0.84,
+        accel: 0.022,
+        friction: 0.96,
+        turnSpeed: 0.048,
+        steeringVisual: 0,
+      };
+
+      // Input State
+      const keys = {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+        brake: false,
+        boost: false,
+      };
+
+      // Autopilot State
+      let autopilotTarget = null;
+      let activeZoneId = null;
+      let dismissedZoneId = null; // Prevents immediate re-popup until leaving zone
+
+      // Lighting Mode: 0 = Sunny Day, 1 = Golden Sunset, 2 = Cyber Night
+      let lightingMode = 2; // Start in vibrant Cyber Sunset/Night so neon pads glow nicely
+      let ambientLight, dirLight, hemiLight;
+
+      // Create crisp 3D Canvas Text Banner Texture
+      function createLabelTexture(title, subtitle, accentColor) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 512;
+        canvas.height = 160;
+        const ctx = canvas.getContext("2d");
+
+        // Rounded pill background
+        ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+        ctx.beginPath();
+        ctx.roundRect(12, 12, 488, 136, 28);
+        ctx.fill();
+
+        // Border
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = accentColor;
+        ctx.stroke();
+
+        // Subtitle badge
+        ctx.font = 'bold 22px "JetBrains Mono", monospace';
+        ctx.fillStyle = accentColor;
+        ctx.textAlign = "center";
+        ctx.fillText(subtitle, 256, 56);
+
+        // Main Title
+        ctx.font = '800 34px "Space Grotesk", sans-serif';
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(title, 256, 108);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      function createFloatingBanner(title, subtitle, colorHex, x, y, z) {
+        const tex = createLabelTexture(title, subtitle, colorHex);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.set(x, y, z);
+        sprite.scale.set(11, 3.5, 1);
+        scene.add(sprite);
+        animatedObjects.push({
+          mesh: sprite,
+          baseY: y,
+          type: "float",
+          speed: 2.0,
+          offset: Math.random() * Math.PI * 2,
+        });
+      }
+
+      function initThreeWorld() {
+        const container = document.getElementById("canvas-container");
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b1120);
+        scene.fog = new THREE.FogExp2(0x0b1120, 0.0065);
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 350);
+        camera.position.set(0, 26, 34);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // Lights
+        hemiLight = new THREE.HemisphereLight(0x38bdf8, 0x0f172a, 0.65);
+        scene.add(hemiLight);
+
+        ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+        scene.add(ambientLight);
+
+        dirLight = new THREE.DirectionalLight(0xffedd5, 1.15);
+        dirLight.position.set(45, 75, 40);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 10;
+        dirLight.shadow.camera.far = 200;
+        const d = 75;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        scene.add(dirLight);
+
+        buildIslandAndRoads();
+        buildZonePadsAndMonuments();
+        buildKnockableBrickWall();
+        buildSceneryTreesAndLamps();
+        buildCyberCar();
+
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function buildIslandAndRoads() {
+        // Main Stylized Island Base
+        const islandGeo = new THREE.CylinderGeometry(82, 86, 4, 48);
+        const islandMat = new THREE.MeshStandardMaterial({
+          color: 0x1e293b,
+          roughness: 0.85,
+          metalness: 0.1,
+        });
+        const island = new THREE.Mesh(islandGeo, islandMat);
+        island.position.y = -2;
+        island.receiveShadow = true;
+        scene.add(island);
+
+        // Subtle Grid Floor Overlay
+        const gridHelper = new THREE.GridHelper(150, 50, 0x334155, 0x1e293b);
+        gridHelper.position.y = 0.02;
+        scene.add(gridHelper);
+
+        // Outer Water / Cyber Ring
+        const waterGeo = new THREE.RingGeometry(83, 220, 64);
+        const waterMat = new THREE.MeshBasicMaterial({
+          color: 0x090d16,
+          side: THREE.DoubleSide,
+        });
+        const water = new THREE.Mesh(waterGeo, waterMat);
+        water.rotation.x = -Math.PI / 2;
+        water.position.y = -1.5;
+        scene.add(water);
+
+        // Asphalt Road Network connecting all 6 zones
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+
+        function addRoadSegment(x1, z1, x2, z2, width = 6.5) {
+          const dx = x2 - x1;
+          const dz = z2 - z1;
+          const len = Math.hypot(dx, dz);
+          const angle = Math.atan2(dx, dz);
+
+          const roadGeo = new THREE.PlaneGeometry(width, len);
+          const road = new THREE.Mesh(roadGeo, roadMat);
+          road.rotation.x = -Math.PI / 2;
+          road.rotation.z = angle;
+          road.position.set((x1 + x2) / 2, 0.04, (z1 + z2) / 2);
+          road.receiveShadow = true;
+          scene.add(road);
+
+          // Center dashed stripe
+          const stripeGeo = new THREE.PlaneGeometry(0.25, len * 0.9);
+          const stripe = new THREE.Mesh(stripeGeo, lineMat);
+          stripe.rotation.x = -Math.PI / 2;
+          stripe.rotation.z = angle;
+          stripe.position.set((x1 + x2) / 2, 0.055, (z1 + z2) / 2);
+          scene.add(stripe);
+        }
+
+        // Connect Central Spawn (0, 4) to all 5 outer zones
+        addRoadSegment(0, 4, -36, -24); // To Zone 2 (FPT)
+        addRoadSegment(0, 4, 36, -24); // To Zone 3 (Projects)
+        addRoadSegment(0, 4, -38, 24); // To Zone 4 (BA & Tech)
+        addRoadSegment(0, 4, 38, 24); // To Zone 5 (AI & Leadership)
+        addRoadSegment(0, 4, 0, 38); // To Zone 6 (Cafe)
+        addRoadSegment(-36, -24, 36, -24, 4.5); // North crossroad
+        addRoadSegment(-36, -24, -38, 24, 4.5); // West crossroad
+        addRoadSegment(36, -24, 38, 24, 4.5); // East crossroad
+      }
+
+      function buildZonePadsAndMonuments() {
+        ZONES_DATA.forEach((zone, idx) => {
+          const color = new THREE.Color(zone.color);
+
+          // Glowing Ground Pad
+          const padGeo = new THREE.CylinderGeometry(zone.radius, zone.radius, 0.18, 40);
+          const padMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            emissive: color,
+            emissiveIntensity: 0.22,
+            roughness: 0.4,
+          });
+          const pad = new THREE.Mesh(padGeo, padMat);
+          pad.position.set(zone.x, 0.09, zone.z);
+          pad.receiveShadow = true;
+          scene.add(pad);
+
+          // Animated Outer Neon Ring
+          const ringGeo = new THREE.RingGeometry(zone.radius - 0.45, zone.radius, 48);
+          const ringMat = new THREE.MeshBasicMaterial({
+            color: color,
+            side: THREE.DoubleSide,
+          });
+          const ring = new THREE.Mesh(ringGeo, ringMat);
+          ring.rotation.x = -Math.PI / 2;
+          ring.position.set(zone.x, 0.22, zone.z);
+          scene.add(ring);
+
+          zoneRings.push({ id: zone.id, mesh: ring, padMat: padMat, baseColor: color });
+
+          // Floating 3D Banner
+          createFloatingBanner(zone.name, zone.code, zone.color, zone.x, 10.5, zone.z - 2);
+        });
+
+        // --- MONUMENT 1: SPAWN PLAZA BEACON ---
+        const archGroup = new THREE.Group();
+        const pillarGeo = new THREE.BoxGeometry(1.2, 8, 1.2);
+        const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 });
+        const pL = new THREE.Mesh(pillarGeo, pillarMat);
+        pL.position.set(-6.5, 4, -2);
+        pL.castShadow = true;
+        const pR = new THREE.Mesh(pillarGeo, pillarMat);
+        pR.position.set(6.5, 4, -2);
+        pR.castShadow = true;
+        const topBar = new THREE.Mesh(new THREE.BoxGeometry(15, 1.4, 1.6), pillarMat);
+        topBar.position.set(0, 8.2, -2);
+        topBar.castShadow = true;
+        archGroup.add(pL, pR, topBar);
+        scene.add(archGroup);
+
+        // --- MONUMENT 2: FPT UNIVERSITY CAMPUS (-36, -24) ---
+        const fptGroup = new THREE.Group();
+        fptGroup.position.set(-36, 0, -28);
+        const bldgMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.35 });
+        const bldgMain = new THREE.Mesh(new THREE.BoxGeometry(10, 6.5, 4.5), bldgMat);
+        bldgMain.position.y = 3.25;
+        bldgMain.castShadow = true;
+        fptGroup.add(bldgMain);
+
+        // Modern Glass Windows on FPT Building
+        const winMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        for (let row = 0; row < 2; row++) {
+          for (let col = -1; col <= 1; col++) {
+            const win = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 4.6), winMat);
+            win.position.set(col * 3, 2.2 + row * 2.4, 0);
+            fptGroup.add(win);
+          }
+        }
+        // 4 Coursera Certificate Pillars around FPT Campus
+        for (let i = 0; i < 4; i++) {
+          const certPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 3.5, 16), new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.3 }));
+          certPillar.position.set(-6 + i * 4, 1.75, 4.2);
+          certPillar.castShadow = true;
+          fptGroup.add(certPillar);
+        }
+        scene.add(fptGroup);
+
+        // --- MONUMENT 3: PROJECT HUB (36, -24) — 4 Sub-Monuments ---
+        const projGroup = new THREE.Group();
+        projGroup.position.set(36, 0, -26);
+
+        // 3A: LegacyVault Glowing Security Cube
+        const vaultMesh = new THREE.Mesh(new THREE.OctahedronGeometry(2.4, 0), new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x0891b2, emissiveIntensity: 0.5, wireframe: false, roughness: 0.2 }));
+        vaultMesh.position.set(-4.5, 4.0, -2);
+        vaultMesh.castShadow = true;
+        projGroup.add(vaultMesh);
+        animatedObjects.push({ mesh: vaultMesh, type: "spin", speed: 1.2, baseY: 4.0 });
+
+        // 3B: Smart Car Wash Arch (Drive-through!)
+        const washArch = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.45, 12, 32, Math.PI), new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.4 }));
+        washArch.position.set(4.5, 0.2, -1);
+        projGroup.add(washArch);
+
+        // 3C: AI Stock Prediction Candlestick Bars
+        const barColors = [0x10b981, 0xf43f5e, 0x10b981, 0x10b981];
+        const barHeights = [2.2, 1.6, 3.4, 4.8];
+        barHeights.forEach((h, idx) => {
+          const bar = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 0.9), new THREE.MeshStandardMaterial({ color: barColors[idx], emissive: barColors[idx], emissiveIntensity: 0.3 }));
+          bar.position.set(-1.5 + idx * 1.2, h / 2, -4.5);
+          bar.castShadow = true;
+          projGroup.add(bar);
+        });
+        scene.add(projGroup);
+
+        // --- MONUMENT 4: BA & TECH LAB (-38, 24) ---
+        const baGroup = new THREE.Group();
+        baGroup.position.set(-38, 0, 26);
+        // SQL Database Stack Cylinders
+        for (let i = 0; i < 3; i++) {
+          const dbCyl = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 1.4, 24), new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x059669, emissiveIntensity: 0.35 }));
+          dbCyl.position.set(-3.5, 1.0 + i * 1.7, -2);
+          dbCyl.castShadow = true;
+          baGroup.add(dbCyl);
+        }
+        // Wireframe System Model Node
+        const wireSphere = new THREE.Mesh(new THREE.IcosahedronGeometry(2.8, 1), new THREE.MeshStandardMaterial({ color: 0x34d399, wireframe: true, emissive: 0x10b981, emissiveIntensity: 0.6 }));
+        wireSphere.position.set(3.5, 4.2, -2);
+        baGroup.add(wireSphere);
+        animatedObjects.push({ mesh: wireSphere, type: "spin", speed: -0.9, baseY: 4.2 });
+        scene.add(baGroup);
+
+        // --- MONUMENT 5: AI & LEADERSHIP NEXUS (38, 24) ---
+        const aiGroup = new THREE.Group();
+        aiGroup.position.set(38, 0, 26);
+        const aiCore = new THREE.Mesh(new THREE.TorusKnotGeometry(2.0, 0.55, 64, 16), new THREE.MeshStandardMaterial({ color: 0xa855f7, emissive: 0x7e22ce, emissiveIntensity: 0.5, roughness: 0.2 }));
+        aiCore.position.set(0, 4.8, -2);
+        aiCore.castShadow = true;
+        aiGroup.add(aiCore);
+        animatedObjects.push({ mesh: aiCore, type: "spin", speed: 1.5, baseY: 4.8 });
+        scene.add(aiGroup);
+
+        // --- MONUMENT 6: CAFE & TECH LOUNGE (0, 38) ---
+        const cafeGroup = new THREE.Group();
+        cafeGroup.position.set(0, 0, 41);
+        // Giant 3D Coffee Cup
+        const cupBody = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 1.9, 4.2, 28), new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.3 }));
+        cupBody.position.set(-4, 2.1, 0);
+        cupBody.castShadow = true;
+        const coffeeLiquid = new THREE.Mesh(new THREE.CircleGeometry(2.2, 24), new THREE.MeshBasicMaterial({ color: 0x451a03 }));
+        coffeeLiquid.rotation.x = -Math.PI / 2;
+        coffeeLiquid.position.set(-4, 4.22, 0);
+        const cupHandle = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.3, 12, 24), new THREE.MeshStandardMaterial({ color: 0xf43f5e }));
+        cupHandle.position.set(-1.7, 2.2, 0);
+        cafeGroup.add(cupBody, coffeeLiquid, cupHandle);
+
+        // Custom Gaming/Dev PC Tower Monument
+        const pcCase = new THREE.Mesh(new THREE.BoxGeometry(2.4, 4.8, 4.2), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.2 }));
+        pcCase.position.set(4.2, 2.4, 0);
+        pcCase.castShadow = true;
+        const pcRgb = new THREE.Mesh(new THREE.BoxGeometry(2.5, 4.0, 3.4), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+        pcRgb.position.set(4.2, 2.4, 0);
+        cafeGroup.add(pcCase, pcRgb);
+        scene.add(cafeGroup);
+      }
+
+      // Create Knockable Physics Brick Wall (Bruno Simon Style!)
+      function buildKnockableBrickWall() {
+        // Remove existing bricks if resetting
+        knockableBricks.forEach((b) => scene.remove(b.mesh));
+        knockableBricks = [];
+
+        const brickColors = [0xf97316, 0xf59e0b, 0x06b6d4, 0x10b981, 0xa855f7, 0xf43f5e];
+        const rows = 4;
+        const cols = 7;
+        const bw = 1.9,
+          bh = 1.1,
+          bd = 1.1;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const mat = new THREE.MeshStandardMaterial({
+              color: brickColors[(r + c) % brickColors.length],
+              roughness: 0.35,
+            });
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+            const offsetX = r % 2 === 1 ? bw * 0.45 : 0;
+            const x = (c - (cols - 1) / 2) * (bw + 0.12) + offsetX;
+            const y = bh / 2 + r * (bh + 0.05);
+            const z = -12; // North of Spawn Plaza
+
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+
+            knockableBricks.push({
+              mesh,
+              vx: 0,
+              vy: 0,
+              vz: 0,
+              rx: 0,
+              ry: 0,
+              rz: 0,
+              awake: false,
+              halfH: bh / 2,
+            });
+          }
+        }
+      }
+
+      function buildSceneryTreesAndLamps() {
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+        const leavesMat = new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.6 });
+        const sakuraMat = new THREE.MeshStandardMaterial({ color: 0xf472b6, roughness: 0.6 }); // Japanese BrSE touch!
+
+        const treeCoords = [
+          [-16, -8],
+          [16, -8],
+          [-18, 12],
+          [18, 12],
+          [-52, -10],
+          [-50, -35],
+          [-22, -42],
+          [52, -10],
+          [50, -35],
+          [22, -42],
+          [-52, 12],
+          [-50, 38],
+          [52, 12],
+          [50, 38],
+          [-18, 46],
+          [18, 46],
+          [-28, 38],
+          [28, 38],
+        ];
+
+        treeCoords.forEach(([tx, tz], i) => {
+          const tree = new THREE.Group();
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 2.2, 8), trunkMat);
+          trunk.position.y = 1.1;
+          trunk.castShadow = true;
+          tree.add(trunk);
+
+          const isSakura = i % 3 === 0;
+          const coneMat = isSakura ? sakuraMat : leavesMat;
+          const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.1, 3.2, 7), coneMat);
+          c1.position.y = 3.2;
+          c1.castShadow = true;
+          const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.6, 7), coneMat);
+          c2.position.y = 4.8;
+          c2.castShadow = true;
+          tree.add(c1, c2);
+
+          tree.position.set(tx, 0, tz);
+          scene.add(tree);
+        });
+      }
+
+      function buildCyberCar() {
+        carGroup = new THREE.Group();
+        carChassis = new THREE.Group();
+
+        // Lower Body
+        const bodyGeo = new THREE.BoxGeometry(2.6, 0.85, 4.6);
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: 0xf97316, // Signature FPT/Bruno Orange
+          roughness: 0.25,
+          metalness: 0.3,
+        });
+        const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+        bodyMesh.position.y = 0.85;
+        bodyMesh.castShadow = true;
+        carChassis.add(bodyMesh);
+
+        // Cyber Cabin / Cockpit
+        const cabinGeo = new THREE.BoxGeometry(2.1, 0.75, 2.4);
+        const cabinMat = new THREE.MeshStandardMaterial({
+          color: 0x0f172a,
+          roughness: 0.15,
+          metalness: 0.8,
+        });
+        const cabinMesh = new THREE.Mesh(cabinGeo, cabinMat);
+        cabinMesh.position.set(0, 1.55, -0.2);
+        cabinMesh.castShadow = true;
+        carChassis.add(cabinMesh);
+
+        // Neon Roof Accent Strip
+        const roofStrip = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 2.0), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+        roofStrip.position.set(0, 1.95, -0.2);
+        carChassis.add(roofStrip);
+
+        // Headlights (Front is +Z in local car coordinates)
+        const hlGeo = new THREE.BoxGeometry(0.55, 0.25, 0.1);
+        const hlMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+        const hlL = new THREE.Mesh(hlGeo, hlMat);
+        hlL.position.set(-0.85, 0.9, 2.31);
+        const hlR = new THREE.Mesh(hlGeo, hlMat);
+        hlR.position.set(0.85, 0.9, 2.31);
+        carChassis.add(hlL, hlR);
+
+        // Brake Lights (Rear is -Z)
+        const blMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const blL = new THREE.Mesh(hlGeo, blMat);
+        blL.position.set(-0.85, 0.9, -2.31);
+        const blR = new THREE.Mesh(hlGeo, blMat);
+        blR.position.set(0.85, 0.9, -2.31);
+        carChassis.add(blL, blR);
+
+        // Headlight Floor Beams
+        const beamGeo = new THREE.ConeGeometry(2.2, 9, 16, 1, true);
+        const beamMat = new THREE.MeshBasicMaterial({
+          color: 0xfef08a,
+          transparent: true,
+          opacity: 0.13,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+        headLightL = new THREE.Mesh(beamGeo, beamMat);
+        headLightL.rotation.x = Math.PI / 2;
+        headLightL.position.set(-0.85, 0.6, 6.8);
+        headLightR = headLightL.clone();
+        headLightR.position.set(0.85, 0.6, 6.8);
+        carChassis.add(headLightL, headLightR);
+
+        carGroup.add(carChassis);
+
+        // 4 Rotating Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.45, 20);
+        wheelGeo.rotateZ(Math.PI / 2);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.8 });
+
+        function makeWheel(x, z) {
+          const wGroup = new THREE.Group();
+          const tire = new THREE.Mesh(wheelGeo, wheelMat);
+          tire.castShadow = true;
+          const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.47, 12).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf97316 }));
+          wGroup.add(tire, rim);
+          wGroup.position.set(x, 0.55, z);
+          carGroup.add(wGroup);
+          return wGroup;
+        }
+
+        frontWheelL = makeWheel(-1.35, 1.45);
+        frontWheelR = makeWheel(1.35, 1.45);
+        rearWheelL = makeWheel(-1.35, -1.45);
+        rearWheelR = makeWheel(1.35, -1.45);
+
+        carGroup.position.set(carState.x, 0, carState.z);
+        carGroup.rotation.y = carState.angle;
+        scene.add(carGroup);
+      }
+
+      function spawnExhaustParticle(isBoost) {
+        const geo = new THREE.SphereGeometry(isBoost ? 0.32 : 0.2, 8, 8);
+        const mat = new THREE.MeshBasicMaterial({
+          color: isBoost ? 0x38bdf8 : 0x94a3b8,
+          transparent: true,
+          opacity: 0.75,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        const backOffset = -2.4;
+        mesh.position.set(carState.x + Math.sin(carState.angle) * backOffset + (Math.random() - 0.5) * 0.6, 0.45, carState.z + Math.cos(carState.angle) * backOffset + (Math.random() - 0.5) * 0.6);
+        scene.add(mesh);
+        particles.push({ mesh, life: 1.0 });
+      }
+
+      /* ============================================================================
+       * 4. NAVIGATION, ZONE DETECTION & AUTOPILOT
+       * ============================================================================ */
+      window.navigateToZone = function (zoneId) {
+        const targetZone = ZONES_DATA.find((z) => z.id === zoneId);
+        if (!targetZone) return;
+
+        dismissedZoneId = null;
+        autopilotTarget = { x: targetZone.x, z: targetZone.z + 3.5, zoneId: targetZone.id };
+
+        const banner = document.getElementById("autopilot-banner");
+        const text = document.getElementById("autopilot-text");
+        if (banner && text) {
+          banner.classList.remove("hidden");
+          text.textContent = `AUTOPILOT: Đang lái tới ${targetZone.name}...`;
+        }
+
+        // Close intro overlay if open
+        const intro = document.getElementById("intro-overlay");
+        if (intro && !intro.classList.contains("hidden")) {
+          intro.classList.add("opacity-0", "pointer-events-none");
+          setTimeout(() => intro.classList.add("hidden"), 400);
+        }
+      };
+
+      window.cancelAutopilot = function () {
+        autopilotTarget = null;
+        const banner = document.getElementById("autopilot-banner");
+        if (banner) banner.classList.add("hidden");
+      };
+
+      window.cycleZone = function (direction) {
+        const currentIdx = ZONES_DATA.findIndex((z) => z.id === activeZoneId);
+        const nextIdx = (currentIdx + direction + ZONES_DATA.length) % ZONES_DATA.length;
+        navigateToZone(ZONES_DATA[nextIdx].id);
+      };
+
+      function openZonePanel(zone) {
+        activeZoneId = zone.id;
+        const panel = document.getElementById("zone-hud-panel");
+        const badge = document.getElementById("hud-zone-badge");
+        const title = document.getElementById("hud-zone-title");
+        const iconBox = document.getElementById("hud-zone-icon");
+        const body = document.getElementById("hud-zone-body");
+        const topIndicator = document.getElementById("active-zone-indicator");
+
+        if (badge) badge.textContent = zone.code;
+        if (title) title.textContent = zone.name;
+        if (iconBox) iconBox.innerHTML = `<i class="fa-solid ${zone.icon}"></i>`;
+        if (body) body.innerHTML = zone.renderHTML();
+        if (topIndicator) topIndicator.textContent = zone.shortName;
+
+        if (panel) {
+          panel.classList.remove("translate-x-[120%]");
+          panel.classList.add("translate-x-0");
+        }
+
+        // Highlight top nav button
+        document.querySelectorAll(".zone-nav-btn").forEach((btn) => {
+          btn.classList.remove("bg-orange-500/20", "border", "border-orange-500/40", "text-white");
+        });
+        const activeNav = document.getElementById("nav-" + zone.id);
+        if (activeNav) {
+          activeNav.classList.add("bg-orange-500/20", "border", "border-orange-500/40", "text-white");
+        }
+      }
+
+      window.closeZonePanel = function () {
+        if (activeZoneId) {
+          dismissedZoneId = activeZoneId;
+        }
+        const panel = document.getElementById("zone-hud-panel");
+        if (panel) {
+          panel.classList.add("translate-x-[120%]");
+          panel.classList.remove("translate-x-0");
+        }
+      };
+
+      window.resetCarAndBricks = function () {
+        cancelAutopilot();
+        carState.x = 0;
+        carState.z = 10;
+        carState.angle = Math.PI;
+        carState.speed = 0;
+        buildKnockableBrickWall();
+        showToast("Đã reset vị trí xe & xếp lại tường gạch 3D!");
+      };
+
+      window.toggleDayNight = function () {
+        lightingMode = (lightingMode + 1) % 3;
+        const icon = document.getElementById("theme-icon");
+        if (lightingMode === 0) {
+          // Sunny Day
+          scene.background.setHex(0x38bdf8);
+          scene.fog.color.setHex(0x38bdf8);
+          ambientLight.intensity = 0.75;
+          dirLight.intensity = 1.3;
+          headLightL.visible = false;
+          headLightR.visible = false;
+          if (icon) icon.className = "fa-solid fa-sun text-amber-400";
+          showToast("Chế độ ánh sáng: Ban ngày (Sunny Day)");
+        } else if (lightingMode === 1) {
+          // Golden Sunset
+          scene.background.setHex(0x1e1b4b);
+          scene.fog.color.setHex(0x1e1b4b);
+          ambientLight.intensity = 0.55;
+          dirLight.intensity = 1.1;
+          headLightL.visible = true;
+          headLightR.visible = true;
+          if (icon) icon.className = "fa-solid fa-cloud-sun text-orange-400";
+          showToast("Chế độ ánh sáng: Hoàng hôn (Sunset Glow)");
+        } else {
+          // Cyber Night
+          scene.background.setHex(0x0b1120);
+          scene.fog.color.setHex(0x0b1120);
+          ambientLight.intensity = 0.45;
+          dirLight.intensity = 0.95;
+          headLightL.visible = true;
+          headLightR.visible = true;
+          if (icon) icon.className = "fa-solid fa-moon text-cyan-300";
+          showToast("Chế độ ánh sáng: Đêm Cyber (Neon Night)");
+        }
+      };
+
+      /* ============================================================================
+       * 5. RADAR MINIMAP RENDERING & CLICK-TO-DRIVE
+       * ============================================================================ */
+      const minimapCanvas = document.getElementById("minimap-canvas");
+      const minimapCtx = minimapCanvas.getContext("2d");
+
+      function drawMinimap() {
+        const w = minimapCanvas.width;
+        const h = minimapCanvas.height;
+        minimapCtx.clearRect(0, 0, w, h);
+
+        const scale = 0.95; // World [-65, 65] -> Canvas [0, 136]
+        const cx = w / 2;
+        const cy = h / 2;
+
+        // Island Circle
+        minimapCtx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+        minimapCtx.lineWidth = 1.5;
+        minimapCtx.beginPath();
+        minimapCtx.arc(cx, cy, 58, 0, Math.PI * 2);
+        minimapCtx.stroke();
+
+        // Draw Roads on Minimap
+        minimapCtx.strokeStyle = "rgba(71, 85, 105, 0.65)";
+        minimapCtx.lineWidth = 3;
+        ZONES_DATA.slice(1).forEach((z) => {
+          minimapCtx.beginPath();
+          minimapCtx.moveTo(cx, cy + 4 * scale);
+          minimapCtx.lineTo(cx + z.x * scale, cy + z.z * scale);
+          minimapCtx.stroke();
+        });
+
+        // Draw 6 Zones
+        ZONES_DATA.forEach((z) => {
+          const zx = cx + z.x * scale;
+          const zy = cy + z.z * scale;
+          minimapCtx.fillStyle = z.color;
+          minimapCtx.beginPath();
+          minimapCtx.arc(zx, zy, activeZoneId === z.id ? 6.5 : 4.5, 0, Math.PI * 2);
+          minimapCtx.fill();
+        });
+
+        // Draw Car Position & Heading Triangle
+        const carMapX = cx + carState.x * scale;
+        const carMapY = cy + carState.z * scale;
+        minimapCtx.save();
+        minimapCtx.translate(carMapX, carMapY);
+        minimapCtx.rotate(-carState.angle + Math.PI);
+        minimapCtx.fillStyle = "#ffffff";
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(0, -6);
+        minimapCtx.lineTo(-4.5, 5);
+        minimapCtx.lineTo(4.5, 5);
+        minimapCtx.closePath();
+        minimapCtx.fill();
+        minimapCtx.restore();
+      }
+
+      minimapCanvas.addEventListener("click", (e) => {
+        const rect = minimapCanvas.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const scale = 0.95;
+        const worldX = (clickX - minimapCanvas.width / 2) / scale;
+        const worldZ = (clickY - minimapCanvas.height / 2) / scale;
+
+        // Check if clicked near a zone
+        for (const z of ZONES_DATA) {
+          if (Math.hypot(worldX - z.x, worldZ - z.z) < 12) {
+            navigateToZone(z.id);
+            return;
+          }
+        }
+        autopilotTarget = { x: worldX, z: worldZ, zoneId: null };
+        const banner = document.getElementById("autopilot-banner");
+        const text = document.getElementById("autopilot-text");
+        if (banner && text) {
+          banner.classList.remove("hidden");
+          text.textContent = "AUTOPILOT: Đang lái tới tọa độ đã chọn...";
+        }
+      });
+
+      /* ============================================================================
+       * 6. INPUT LISTENERS (KEYBOARD + TOUCH + INTRO)
+       * ============================================================================ */
+      function updateKeycapUI(id, active) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (active) el.classList.add("active");
+        else el.classList.remove("active");
+      }
+
+      window.addEventListener("keydown", (e) => {
+        const code = e.code;
+        if (["KeyW", "ArrowUp", "KeyS", "ArrowDown", "KeyA", "ArrowLeft", "KeyD", "ArrowRight"].includes(code)) {
+          if (autopilotTarget) cancelAutopilot();
+        }
+        if (code === "KeyW" || code === "ArrowUp") {
+          keys.up = true;
+          updateKeycapUI("key-w", true);
+        }
+        if (code === "KeyS" || code === "ArrowDown") {
+          keys.down = true;
+          updateKeycapUI("key-s", true);
+        }
+        if (code === "KeyA" || code === "ArrowLeft") {
+          keys.left = true;
+          updateKeycapUI("key-a", true);
+        }
+        if (code === "KeyD" || code === "ArrowRight") {
+          keys.right = true;
+          updateKeycapUI("key-d", true);
+        }
+        if (code === "Space") {
+          keys.brake = true;
+          updateKeycapUI("key-space", true);
+        }
+        if (code === "ShiftLeft" || code === "ShiftRight") {
+          keys.boost = true;
+          updateKeycapUI("key-shift", true);
+        }
+        if (code === "KeyR") {
+          resetCarAndBricks();
+        }
+        if (code === "Escape") {
+          closeZonePanel();
+          toggleFastCVModal(false);
+        }
+      });
+
+      window.addEventListener("keyup", (e) => {
+        const code = e.code;
+        if (code === "KeyW" || code === "ArrowUp") {
+          keys.up = false;
+          updateKeycapUI("key-w", false);
+        }
+        if (code === "KeyS" || code === "ArrowDown") {
+          keys.down = false;
+          updateKeycapUI("key-s", false);
+        }
+        if (code === "KeyA" || code === "ArrowLeft") {
+          keys.left = false;
+          updateKeycapUI("key-a", false);
+        }
+        if (code === "KeyD" || code === "ArrowRight") {
+          keys.right = false;
+          updateKeycapUI("key-d", false);
+        }
+        if (code === "Space") {
+          keys.brake = false;
+          updateKeycapUI("key-space", false);
+        }
+        if (code === "ShiftLeft" || code === "ShiftRight") {
+          keys.boost = false;
+          updateKeycapUI("key-shift", false);
+        }
+      });
+
+      // Mobile Touch Button Binding
+      function bindTouchButton(btnId, keyProp) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const start = (e) => {
+          e.preventDefault();
+          cancelAutopilot();
+          keys[keyProp] = true;
+        };
+        const end = (e) => {
+          e.preventDefault();
+          keys[keyProp] = false;
+        };
+        btn.addEventListener("touchstart", start, { passive: false });
+        btn.addEventListener("touchend", end, { passive: false });
+        btn.addEventListener("mousedown", start);
+        btn.addEventListener("mouseup", end);
+        btn.addEventListener("mouseleave", end);
+      }
+
+      bindTouchButton("touch-up", "up");
+      bindTouchButton("touch-down", "down");
+      bindTouchButton("touch-left", "left");
+      bindTouchButton("touch-right", "right");
+
+      document.getElementById("start-driving-btn").addEventListener("click", () => {
+        const intro = document.getElementById("intro-overlay");
+        intro.classList.add("opacity-0", "pointer-events-none");
+        setTimeout(() => intro.classList.add("hidden"), 450);
+        // Open Spawn Plaza HUD to greet the user
+        openZonePanel(ZONES_DATA[0]);
+      });
+
+      document.getElementById("intro-fast-cv-btn").addEventListener("click", () => {
+        const intro = document.getElementById("intro-overlay");
+        intro.classList.add("opacity-0", "pointer-events-none");
+        setTimeout(() => intro.classList.add("hidden"), 450);
+        toggleFastCVModal(true);
+      });
+
+      /* ============================================================================
+       * 7. MAIN GAME & PHYSICS ANIMATION LOOP
+       * ============================================================================ */
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsedTime = clock.getElapsedTime();
+
+        // 1. Handle Autopilot Steering if active
+        if (autopilotTarget) {
+          const dx = autopilotTarget.x - carState.x;
+          const dz = autopilotTarget.z - carState.z;
+          const dist = Math.hypot(dx, dz);
+
+          if (dist < 2.2) {
+            // Arrived!
+            carState.speed *= 0.5;
+            const arrivedZoneId = autopilotTarget.zoneId;
+            cancelAutopilot();
+            if (arrivedZoneId) {
+              const zObj = ZONES_DATA.find((z) => z.id === arrivedZoneId);
+              if (zObj) openZonePanel(zObj);
+            }
+          } else {
+            const desiredAngle = Math.atan2(dx, dz);
+            let angleDiff = desiredAngle - carState.angle;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+            carState.angle += Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), carState.turnSpeed * 1.35);
+            carState.speed = Math.min(carState.speed + carState.accel * 1.2, 0.55);
+          }
+        } else {
+          // 2. Manual Driving Controls
+          const topSpeed = keys.boost ? carState.boostMaxSpeed : carState.maxSpeed;
+          if (keys.up) {
+            carState.speed = Math.min(carState.speed + (keys.boost ? carState.accel * 1.5 : carState.accel), topSpeed);
+          } else if (keys.down) {
+            carState.speed = Math.max(carState.speed - carState.accel, -topSpeed * 0.65);
+          } else {
+            carState.speed *= carState.friction;
+          }
+
+          if (keys.brake) {
+            carState.speed *= 0.86;
+          }
+
+          // Steering when moving
+          if (Math.abs(carState.speed) > 0.01) {
+            const dir = carState.speed > 0 ? 1 : -1;
+            if (keys.left) {
+              carState.angle += carState.turnSpeed * dir;
+              carState.steeringVisual = Math.min(carState.steeringVisual + 0.08, 0.45);
+            } else if (keys.right) {
+              carState.angle -= carState.turnSpeed * dir;
+              carState.steeringVisual = Math.max(carState.steeringVisual - 0.08, -0.45);
+            } else {
+              carState.steeringVisual *= 0.8;
+            }
+          } else {
+            carState.steeringVisual *= 0.8;
+          }
+        }
+
+        // Apply velocity to position
+        carState.x += Math.sin(carState.angle) * carState.speed;
+        carState.z += Math.cos(carState.angle) * carState.speed;
+
+        // Keep inside Island boundary (radius 76)
+        const distFromCenter = Math.hypot(carState.x, carState.z);
+        if (distFromCenter > 75) {
+          const boundAngle = Math.atan2(carState.x, carState.z);
+          carState.x = Math.sin(boundAngle) * 75;
+          carState.z = Math.cos(boundAngle) * 75;
+          carState.speed *= -0.4;
+        }
+
+        // Update Car Mesh & Suspension Tilt
+        carGroup.position.set(carState.x, 0, carState.z);
+        carGroup.rotation.y = carState.angle;
+        carChassis.rotation.x = -carState.speed * 0.14; // Pitch on acceleration
+        carChassis.rotation.z = -carState.steeringVisual * carState.speed * 0.35; // Roll on cornering
+
+        // Spin & Steer Wheels
+        const wheelSpin = carState.speed * 1.6;
+        frontWheelL.rotation.y = carState.steeringVisual;
+        frontWheelR.rotation.y = carState.steeringVisual;
+        frontWheelL.children[0].rotation.x += wheelSpin;
+        frontWheelR.children[0].rotation.x += wheelSpin;
+        rearWheelL.children[0].rotation.x += wheelSpin;
+        rearWheelR.children[0].rotation.x += wheelSpin;
+
+        // Exhaust Particles
+        if (Math.abs(carState.speed) > 0.18 && Math.random() < (keys.boost ? 0.85 : 0.35)) {
+          spawnExhaustParticle(keys.boost);
+        }
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.life -= 0.04;
+          p.mesh.position.y += 0.03;
+          p.mesh.scale.multiplyScalar(1.03);
+          p.mesh.material.opacity = p.life * 0.7;
+          if (p.life <= 0) {
+            scene.remove(p.mesh);
+            particles.splice(i, 1);
+          }
+        }
+
+        // Update Knockable Brick Physics
+        knockableBricks.forEach((b) => {
+          const dx = b.mesh.position.x - carState.x;
+          const dz = b.mesh.position.z - carState.z;
+          const dist = Math.hypot(dx, dz);
+          if (dist < 2.8 && b.mesh.position.y < 2.6) {
+            b.awake = true;
+            const impact = Math.max(Math.abs(carState.speed), 0.25);
+            b.vx = (dx / (dist || 1)) * impact * 1.45 + (Math.random() - 0.5) * 0.2;
+            b.vz = (dz / (dist || 1)) * impact * 1.45 + (Math.random() - 0.5) * 0.2;
+            b.vy = impact * 0.85 + 0.12;
+            b.rx = (Math.random() - 0.5) * 0.25;
+            b.rz = (Math.random() - 0.5) * 0.25;
+          }
+
+          if (b.awake) {
+            b.mesh.position.x += b.vx;
+            b.mesh.position.y += b.vy;
+            b.mesh.position.z += b.vz;
+            b.mesh.rotation.x += b.rx;
+            b.mesh.rotation.z += b.rz;
+            b.vy -= 0.028; // Gravity
+
+            if (b.mesh.position.y <= b.halfH) {
+              b.mesh.position.y = b.halfH;
+              b.vy *= -0.35;
+              b.vx *= 0.82;
+              b.vz *= 0.82;
+              b.rx *= 0.75;
+              b.rz *= 0.75;
+              if (Math.hypot(b.vx, b.vz) < 0.005 && Math.abs(b.vy) < 0.02) {
+                b.awake = false;
+              }
+            }
+          }
+        });
+
+        // Smooth Isometric/Third-Person Follow Camera
+        const camTargetX = carState.x - Math.sin(carState.angle) * 14;
+        const camTargetZ = carState.z + 24;
+        camera.position.x += (camTargetX - camera.position.x) * 0.08;
+        camera.position.z += (camTargetZ - camera.position.z) * 0.08;
+        camera.position.y += (21 - camera.position.y) * 0.08;
+        camera.lookAt(carState.x, 1.5, carState.z - 2);
+
+        // Animate Monuments & Floating Signs
+        animatedObjects.forEach((item) => {
+          if (item.type === "spin") {
+            item.mesh.rotation.y = elapsedTime * item.speed;
+            item.mesh.rotation.x = Math.sin(elapsedTime * 0.7) * 0.25;
+            item.mesh.position.y = item.baseY + Math.sin(elapsedTime * 2) * 0.35;
+          } else if (item.type === "float") {
+            item.mesh.position.y = item.baseY + Math.sin(elapsedTime * item.speed + item.offset) * 0.28;
+          }
+        });
+
+        // Check Zone Proximity & Pulse Rings
+        let insideZone = null;
+        ZONES_DATA.forEach((z, idx) => {
+          const d = Math.hypot(carState.x - z.x, carState.z - z.z);
+          const ringObj = zoneRings[idx];
+          if (ringObj) {
+            const pulse = 1 + Math.sin(elapsedTime * 3.5 + idx) * 0.035;
+            ringObj.mesh.scale.set(pulse, pulse, 1);
+          }
+          if (d < z.radius) {
+            insideZone = z;
+          }
+        });
+
+        if (insideZone) {
+          if (activeZoneId !== insideZone.id && dismissedZoneId !== insideZone.id) {
+            openZonePanel(insideZone);
+          }
+        } else {
+          dismissedZoneId = null;
+          if (activeZoneId !== null) {
+            activeZoneId = null;
+            const panel = document.getElementById("zone-hud-panel");
+            if (panel) {
+              panel.classList.add("translate-x-[120%]");
+              panel.classList.remove("translate-x-0");
+            }
+            const topIndicator = document.getElementById("active-zone-indicator");
+            if (topIndicator) topIndicator.textContent = "Đang tự do di chuyển";
+          }
+        }
+
+        // Update Digital Speedometer HUD
+        const kmh = Math.min(99, Math.round(Math.abs(carState.speed) * 145));
+        const speedEl = document.getElementById("speed-value");
+        const gearEl = document.getElementById("gear-badge");
+        if (speedEl) speedEl.textContent = String(kmh).padStart(2, "0");
+        if (gearEl) {
+          if (autopilotTarget) {
+            gearEl.textContent = "AUTO";
+            gearEl.className = "mt-1 inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40";
+          } else if (keys.boost && kmh > 10) {
+            gearEl.textContent = "TURBO";
+            gearEl.className = "mt-1 inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-orange-500/20 text-orange-300 border border-orange-500/40";
+          } else if (carState.speed < -0.02) {
+            gearEl.textContent = "REV";
+            gearEl.className = "mt-1 inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40";
+          } else {
+            gearEl.textContent = "DRIVE";
+            gearEl.className = "mt-1 inline-block text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-emerald-400 border border-slate-700";
+          }
+        }
+
+        drawMinimap();
+        renderer.render(scene, camera);
+      }
+
+      function onWindowResize() {
+        if (!camera || !renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      window.onload = function () {
+        initThreeWorld();
+        animate();
+      };
+    </script>
+  </body>
+</html>
