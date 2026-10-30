@@ -6,7 +6,7 @@ Chào mừng bạn đến với **3D Interactive Portfolio** của **Trần Xuâ
 
 Lấy cảm hứng từ phong cách tương tác 3D của *Bruno Simon*, dự án này tích hợp **Mô hình 3D Supercar GLB thực tế (`GLTFLoader` + `DRACOLoader`)** cùng hệ thống ánh xạ phản chiếu kim loại **HDR Studio Environment** và **hệ thống phím tắt chuyển trạm tức thì (`Q`, `E`, `1`–`6`)** giúp Nhà tuyển dụng (HR) khám phá toàn bộ hồ sơ mà không cần chạm chuột.
 
-## ✨ Tính năng nổi bật (Key Features)
+## ✨ Tính năng nổi bật: 
 
 * **🏎️ Mô hình 3D Supercar GLB thực tế & Lamborghini SVJ Anatomy:** Tự động nạp mô hình 3D Supercar độ chi tiết cao (có kính chắn gió trong suốt, nội thất, mâm phanh đĩa và sơn kim loại phản chiếu HDR). Hỗ trợ bấm phím `V` để chuyển đổi sang mẫu **Lamborghini Aventador SVJ** và bấm `X` để bung giải phẫu 7 cụm chi tiết kỹ thuật (*Exploded Anatomy View*).
 
