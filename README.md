@@ -48,7 +48,7 @@ Lấy cảm hứng từ phong cách tương tác 3D của *Bruno Simon*, dự á
 6. **☕ Zone 06 (Phím `6`) — Cafe & Custom PC Lounge (Interests & Contact):**
    * Không gian sở thích cá nhân (Cà phê, Coding, Dàn PC Custom RGB) và cổng kết nối trực tiếp.
 
-## 💼 Tóm tắt các Dự án Tiêu biểu (Featured Projects)
+## 💼 Tóm tắt các Dự án Tiêu biểu
 
 | Dự án | Thời gian | Vai trò | Công nghệ & Phương pháp | Mã nguồn |
 | :--- | :--- | :--- | :--- | :--- |
